@@ -1,11 +1,13 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
-import '../../../../shared/widgets/section_header.dart';
-import '../../../../shared/widgets/status_badge.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../data/models/teacher_news_item.dart';
+import '../cubit/news_cubit.dart';
 
 class NewsPage extends StatefulWidget {
   const NewsPage({super.key});
@@ -15,62 +17,8 @@ class NewsPage extends StatefulWidget {
 }
 
 class _NewsPageState extends State<NewsPage> with TickerProviderStateMixin {
-  String _selectedFilter = 'الكل';
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-
-  final List<Map<String, dynamic>> _news = [
-    {
-      'title': 'اجتماع أولياء الأمور يوم الخميس',
-      'date': '13 مايو 2024',
-      'content': 'تم تحديد موعد اجتماع أولياء الأمور لمناقشة نتائج الفصل الحالي وخطة العام الدراسي المقبل. سيتم مناقشة التحديات والإنجازات وكيفية دعم الطلاب في رحلتهم التعليمية.',
-      'badgeLabel': 'هام',
-      'badgeColor': AppColors.error,
-      'icon': Icons.people,
-      'isRead': false,
-      'category': 'اجتماعات',
-    },
-    {
-      'title': 'بدء اختبار الرياضيات الأسبوع المقبل',
-      'date': '11 مايو 2024',
-      'content': 'يرجى تحضير خطة مراجعة شاملة للطلاب وتوزيع الأسئلة التدريبية. سيتم التركيز على المواضيع الأساسية والتطبيقات العملية لضمان فهم الطلاب الكامل.',
-      'badgeLabel': 'تنبيه',
-      'badgeColor': AppColors.warning,
-      'icon': Icons.calculate,
-      'isRead': true,
-      'category': 'امتحانات',
-    },
-    {
-      'title': 'تحديث النظام التعليمي',
-      'date': '09 مايو 2024',
-      'content': 'أضيف قسم جديد لطلبات تبرير الغياب وتحسين واجهة المستخدم. كما تم تحسين أداء التطبيق وإضافة ميزات جديدة لتسهيل عمل المعلمين.',
-      'badgeLabel': 'معلومات',
-      'badgeColor': AppColors.info,
-      'icon': Icons.system_update,
-      'isRead': true,
-      'category': 'تحديثات',
-    },
-    {
-      'title': 'فعالية رياضية نهاية الأسبوع',
-      'date': '08 مايو 2024',
-      'content': 'دعوة للمشاركة في الفعالية الرياضية الأسبوعية. سيتم تنظيم مسابقات في كرة القدم والسلة وألعاب القوى لتشجيع النشاط البدني بين الطلاب.',
-      'badgeLabel': 'فعالية',
-      'badgeColor': AppColors.success,
-      'icon': Icons.sports_soccer,
-      'isRead': false,
-      'category': 'أنشطة',
-    },
-    {
-      'title': 'ورشة عمل تطوير مهارات التدريس',
-      'date': '05 مايو 2024',
-      'content': 'سيتم عقد ورشة عمل لتطوير مهارات التدريس الحديثة. ستشمل الورشة استخدام التكنولوجيا في التعليم واستراتيجيات تفاعلية جديدة.',
-      'badgeLabel': 'تدريب',
-      'badgeColor': AppColors.primary,
-      'icon': Icons.school,
-      'isRead': true,
-      'category': 'تدريب',
-    },
-  ];
 
   @override
   void initState() {
@@ -83,6 +31,11 @@ class _NewsPageState extends State<NewsPage> with TickerProviderStateMixin {
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final token = context.read<AuthCubit>().sessionToken;
+      context.read<NewsCubit>().loadNews(token);
+    });
   }
 
   @override
@@ -91,213 +44,179 @@ class _NewsPageState extends State<NewsPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  List<Map<String, dynamic>> get _filteredNews {
-    if (_selectedFilter == 'الكل') return _news;
-    if (_selectedFilter == 'غير مقروءة') return _news.where((n) => !n['isRead']).toList();
-    return _news.where((n) => n['badgeLabel'] == _selectedFilter).toList();
-  }
-
-  void _markAsRead(int index) {
-    setState(() {
-      _filteredNews[index]['isRead'] = true;
-    });
-  }
-
-  int get _unreadCount => _news.where((n) => !n['isRead']).length;
-
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: 'الأخبار والإعلانات',
-      currentIndex: 0,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SizedBox.expand(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-            // Header with Stats
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const SectionHeader(
-                        title: 'آخر الأخبار',
-                        subtitle: 'الإشعارات الرسمية والتنبيهات المهمة',
+    return BlocBuilder<NewsCubit, NewsState>(
+      builder: (context, state) {
+        final news = state is NewsLoaded ? state.news : <TeacherNewsItem>[];
+        final unreadCount = state is NewsLoaded ? state.unreadCount : 0;
+        final isLoading = state is NewsLoading;
+        final errorMessage = state is NewsError ? state.message : null;
 
+        return AppScaffold(
+          title: 'الأخبار',
+          currentIndex: 3,
+          body: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SizedBox.expand(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary, AppColors.secondary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.onPrimary.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(
-                              Icons.notifications_none,
-                              color: AppColors.onPrimary,
-                              size: 20,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'آخر الأخبار',
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      color: AppColors.onPrimary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    'تابع الإعلانات الرسمية والتنبيهات المهمة',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: AppColors.onPrimary.withValues(alpha: 0.9),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$_unreadCount غير مقروءة',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.onPrimary,
-                                fontWeight: FontWeight.w600,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.onPrimary.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.notifications_none, color: AppColors.onPrimary, size: 20),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$unreadCount غير مقروءة',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: AppColors.onPrimary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  // Filter Chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterChip('الكل'),
-                        const SizedBox(width: AppSpacing.sm),
-                        _buildFilterChip('غير مقروءة'),
-                        const SizedBox(width: AppSpacing.sm),
-                        _buildFilterChip('هام'),
-                        const SizedBox(width: AppSpacing.sm),
-                        _buildFilterChip('تنبيه'),
-                        const SizedBox(width: AppSpacing.sm),
-                        _buildFilterChip('معلومات'),
+                        const SizedBox(height: AppSpacing.md),
+                        if (unreadCount > 0)
+                          SizedBox(
+                            width: double.infinity,
+                            child: PrimaryButton(
+                              label: 'تحديد الكل كمقروء',
+                              onPressed: () => context.read<NewsCubit>().markAllAsRead(),
+                              icon: Icons.done_all,
+                            ),
+                          ),
                       ],
                     ),
+                  ),
+                  Expanded(
+                    child: _buildBody(context, isLoading, errorMessage, news),
                   ),
                 ],
               ),
             ),
-            // News List
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: _filteredNews.length,
-                itemBuilder: (context, index) {
-                  final newsItem = _filteredNews[index];
-                  return AnimatedBuilder(
-                    animation: _animationController,
-                    builder: (context, child) {
-                      return FadeTransition(
-                        opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                          CurvedAnimation(
-                            parent: _animationController,
-                            curve: Interval(
-                              index * 0.1,
-                              1.0,
-                              curve: Curves.easeInOut,
-                            ),
-                          ),
-                        ),
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.1),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: _animationController,
-                              curve: Interval(
-                                index * 0.1,
-                                1.0,
-                                curve: Curves.easeOut,
-                              ),
-                            ),
-                          ),
-                          child: _NewsCard(
-                            news: newsItem,
-                            onMarkAsRead: () => _markAsRead(index),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-            // Mark All as Read Button
-            if (_unreadCount > 0)
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border(
-                    top: BorderSide(color: AppColors.border.withOpacity(0.3)),
-                  ),
-                ),
-                child: PrimaryButton(
-                  label: 'تحديد الكل كمقروء',
-                  onPressed: () {
-                    setState(() {
-                      for (var news in _news) {
-                        news['isRead'] = true;
-                      }
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم تحديد جميع الأخبار كمقروءة'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  },
-                  icon: Icons.done_all,
-                ),
-              ),
-          ],
-        ),
-      ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildFilterChip(String label) {
-    final isSelected = _selectedFilter == label;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _selectedFilter = selected ? label : 'الكل';
-        });
-        _animationController.reset();
-        _animationController.forward();
+  Widget _buildBody(BuildContext context, bool isLoading, String? errorMessage, List<TeacherNewsItem> news) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 42, color: AppColors.warning),
+              const SizedBox(height: AppSpacing.sm),
+              Text('تعذر تحميل الأخبار', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.xs),
+              Text(errorMessage, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: AppSpacing.md),
+              ElevatedButton.icon(
+                onPressed: () {
+                  final token = context.read<AuthCubit>().sessionToken;
+                  context.read<NewsCubit>().loadNews(token);
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('إعادة المحاولة'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (news.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.inbox_outlined, size: 42, color: AppColors.primary),
+              const SizedBox(height: AppSpacing.sm),
+              Text('لا توجد أخبار حاليا', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.xs),
+              Text('ستظهر الإعلانات القادمة هنا بمجرد وصولها من الخادم.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      itemCount: news.length,
+      itemBuilder: (context, index) {
+        final item = news[index];
+        return _NewsCard(
+          news: item,
+          onMarkAsRead: () => context.read<NewsCubit>().markAsRead(item.id),
+        );
       },
-      backgroundColor: AppColors.onPrimary.withOpacity(0.1),
-      selectedColor: AppColors.onPrimary.withOpacity(0.3),
-      checkmarkColor: AppColors.onPrimary,
-      labelStyle: TextStyle(
-        color: AppColors.onPrimary,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-      ),
     );
   }
 }
 
 class _NewsCard extends StatefulWidget {
-  const _NewsCard({
-    required this.news,
-    required this.onMarkAsRead,
-  });
+  const _NewsCard({required this.news, required this.onMarkAsRead});
 
-  final Map<String, dynamic> news;
+  final TeacherNewsItem news;
   final VoidCallback onMarkAsRead;
 
   @override
@@ -329,140 +248,130 @@ class _NewsCardState extends State<_NewsCard> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final isRead = widget.news['isRead'] as bool;
+    final isRead = widget.news.isRead;
+    final accent = isRead ? AppColors.info : AppColors.error;
+
     return Card(
-      elevation: isRead ? 1 : 4,
+      elevation: isRead ? 1 : 3,
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              isRead ? AppColors.surface : widget.news['badgeColor'].withOpacity(0.1),
-              AppColors.surface,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            setState(() {
-              _isExpanded = !_isExpanded;
-              if (_isExpanded) {
-                _expandController.forward();
-                if (!isRead) {
-                  widget.onMarkAsRead();
-                }
-              } else {
-                _expandController.reverse();
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          setState(() {
+            _isExpanded = !_isExpanded;
+            if (_isExpanded) {
+              _expandController.forward();
+              if (!isRead) {
+                widget.onMarkAsRead();
               }
-            });
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
+            } else {
+              _expandController.reverse();
+            }
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      isRead ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                      color: accent,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.news.title,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: isRead ? AppColors.onSurface.withValues(alpha: 0.75) : AppColors.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          widget.news.formattedCreatedAt,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withValues(alpha: 0.65)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      isRead ? 'مقروء' : 'جديد',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: accent, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                widget.news.body,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5, color: AppColors.onSurface.withValues(alpha: 0.8)),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'منشئ الخبر: ${widget.news.creatorName}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withValues(alpha: 0.7)),
+                    ),
+                  ),
+                  if (widget.news.hasAttachments)
+                    Row(
+                      children: [
+                        const Icon(Icons.attach_file, size: 18, color: AppColors.primary),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text('مرفقات', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.primary)),
+                      ],
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizeTransition(
+                sizeFactor: _expandAnimation,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Icon
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: widget.news['badgeColor'].withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        widget.news['icon'],
-                        color: widget.news['badgeColor'],
-                        size: 24,
-                      ),
+                    const Divider(),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'البريد: ${widget.news.creatorEmail}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withValues(alpha: 0.65)),
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    // Title and Badge
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.news['title'],
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isRead ? AppColors.onSurface.withOpacity(0.7) : AppColors.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Row(
-                            children: [
-                              Text(
-                                widget.news['date'],
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.onSurface.withOpacity(0.6),
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: isRead ? Colors.transparent : widget.news['badgeColor'],
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    StatusBadge(
-                      label: widget.news['badgeLabel'],
-                      color: widget.news['badgeColor'],
+                    const SizedBox(height: AppSpacing.xs),
+                    Row(
+                      children: [
+                        Icon(_isExpanded ? Icons.expand_less : Icons.expand_more, color: AppColors.onSurface.withValues(alpha: 0.6)),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(_isExpanded ? 'إخفاء التفاصيل' : 'عرض التفاصيل', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.primary)),
+                      ],
                     ),
                   ],
                 ),
-                // Expanded Content
-                SizeTransition(
-                  sizeFactor: _expandAnimation,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: AppSpacing.md),
-                      const Divider(),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        widget.news['content'],
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppColors.onSurface.withOpacity(0.8),
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'التصنيف: ${widget.news['category']}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.onSurface.withOpacity(0.6),
-                            ),
-                          ),
-                          Icon(
-                            _isExpanded ? Icons.expand_less : Icons.expand_more,
-                            color: AppColors.onSurface.withOpacity(0.6),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

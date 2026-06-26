@@ -20,6 +20,21 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
   bool _scheduled = false;
   bool _showCompose = false;
   late AnimationController _animationController;
+
+  final Map<String, List<String>> _classSections = {
+    'الصف الأول': ['A', 'B'],
+    'الصف الثاني': ['A', 'B'],
+    'الصف الثالث': ['A', 'B'],
+    'الصف الرابع': ['A'],
+  };
+
+  String _selectedGrade = 'الصف الثالث';
+  String _selectedSection = 'A';
+
+  List<Map<String, dynamic>> get _visibleNotes => _sentNotes
+      .where((note) =>
+          note['grade'] == _selectedGrade && note['section'] == _selectedSection)
+      .toList();
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
@@ -53,6 +68,8 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
       'icon': Icons.done_all,
       'readCount': 1,
       'totalCount': 1,
+      'grade': 'الصف الأول',
+      'section': 'B',
     },
   ];
 
@@ -92,6 +109,8 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
       'icon': Icons.send,
       'readCount': 0,
       'totalCount': _recipient == 'طالب واحد' ? 1 : _recipient == 'شعبة كاملة' ? 20 : 24,
+      'grade': _selectedGrade,
+      'section': _selectedSection,
     };
 
     setState(() {
@@ -120,6 +139,7 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
             SliverToBoxAdapter(
               child: Column(
                 children: [
+                  _buildClassSectionSelectors(),
                   // Header with Stats
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
@@ -158,7 +178,7 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '${_sentNotes.length} مرسلة',
+                                    '${_visibleNotes.length} مرسلة',
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       color: AppColors.onPrimary,
                                       fontWeight: FontWeight.w600,
@@ -325,7 +345,7 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final note = _sentNotes[index];
+                    final note = _visibleNotes[index];
                     return AnimatedBuilder(
                       animation: _animationController,
                       builder: (context, child) {
@@ -360,7 +380,7 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
                       },
                     );
                   },
-                  childCount: _sentNotes.length,
+                  childCount: _visibleNotes.length,
                 ),
               ),
             ),
@@ -369,6 +389,78 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildClassSectionSelectors() {
+    final sections = _classSections[_selectedGrade] ?? ['A'];
+    final currentSection = sections.contains(_selectedSection) ? _selectedSection : sections.first;
+    if (_selectedSection != currentSection) {
+      _selectedSection = currentSection;
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'اختر الصف والشعبة',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedGrade,
+                  decoration: InputDecoration(
+                    labelText: 'الصف',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                  ),
+                  items: _classSections.keys
+                      .map((grade) => DropdownMenuItem(value: grade, child: Text(grade)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _selectedGrade = value;
+                      _selectedSection = _classSections[value]!.first;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedSection,
+                  decoration: InputDecoration(
+                    labelText: 'الشعبة',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                  ),
+                  items: sections
+                      .map((section) => DropdownMenuItem(value: section, child: Text(section)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _selectedSection = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

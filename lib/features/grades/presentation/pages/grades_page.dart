@@ -19,14 +19,64 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  final Map<String, List<String>> _classSections = {
+    'الصف الأول': ['A', 'B'],
+    'الصف الثاني': ['A', 'B'],
+    'الصف الثالث': ['A', 'B'],
+    'الصف الرابع': ['A'],
+  };
+
+  String _selectedGrade = 'الصف الثالث';
+  String _selectedSection = 'A';
+
   final List<String> _tabs = ['الامتحانات', 'الواجبات', 'النشاطات'];
 
   final List<Map<String, dynamic>> _exams = [
-    {'studentName': 'قيس حمدان', 'score': 91, 'status': 'ممتاز', 'color': AppColors.success, 'date': '15/5/2024'},
-    {'studentName': 'هدى منصور', 'score': 87, 'status': 'جيد جداً', 'color': AppColors.primary, 'date': '15/5/2024'},
-    {'studentName': 'ريان النجار', 'score': 78, 'status': 'جيد', 'color': AppColors.warning, 'date': '15/5/2024'},
-    {'studentName': 'سارة أحمد', 'score': 95, 'status': 'ممتاز', 'color': AppColors.success, 'date': '15/5/2024'},
-    {'studentName': 'محمد علي', 'score': 82, 'status': 'جيد جداً', 'color': AppColors.primary, 'date': '15/5/2024'},
+    {
+      'studentName': 'قيس حمدان',
+      'score': 91,
+      'status': 'ممتاز',
+      'color': AppColors.success,
+      'date': '15/5/2024',
+      'grade': 'الصف الثالث',
+      'section': 'A',
+    },
+    {
+      'studentName': 'هدى منصور',
+      'score': 87,
+      'status': 'جيد جداً',
+      'color': AppColors.primary,
+      'date': '15/5/2024',
+      'grade': 'الصف الثالث',
+      'section': 'A',
+    },
+    {
+      'studentName': 'ريان النجار',
+      'score': 78,
+      'status': 'جيد',
+      'color': AppColors.warning,
+      'date': '15/5/2024',
+      'grade': 'الصف الثالث',
+      'section': 'B',
+    },
+    {
+      'studentName': 'سارة أحمد',
+      'score': 95,
+      'status': 'ممتاز',
+      'color': AppColors.success,
+      'date': '15/5/2024',
+      'grade': 'الصف الأول',
+      'section': 'A',
+    },
+    {
+      'studentName': 'محمد علي',
+      'score': 82,
+      'status': 'جيد جداً',
+      'color': AppColors.primary,
+      'date': '15/5/2024',
+      'grade': 'الصف الثاني',
+      'section': 'B',
+    },
   ];
 
   final List<Map<String, dynamic>> _homework = [
@@ -42,16 +92,25 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
   ];
 
   List<Map<String, dynamic>> get _currentGrades {
+    final List<Map<String, dynamic>> grades;
     switch (_selectedIndex) {
       case 0:
-        return _exams;
+        grades = _exams;
+        break;
       case 1:
-        return _homework;
+        grades = _homework;
+        break;
       case 2:
-        return _activities;
+        grades = _activities;
+        break;
       default:
-        return _exams;
+        grades = _exams;
     }
+
+    return grades
+        .where((grade) =>
+            grade['grade'] == _selectedGrade && grade['section'] == _selectedSection)
+        .toList();
   }
 
   @override
@@ -125,6 +184,7 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
         opacity: _fadeAnimation,
         child: Column(
           children: [
+            _buildClassSectionSelectors(),
             // Header with Stats
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -285,6 +345,78 @@ class _GradesPageState extends State<GradesPage> with TickerProviderStateMixin {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildClassSectionSelectors() {
+    final sections = _classSections[_selectedGrade] ?? ['A'];
+    final defaultSection = sections.contains(_selectedSection) ? _selectedSection : sections.first;
+    if (_selectedSection != defaultSection) {
+      _selectedSection = defaultSection;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'اختر الصف والشعبة',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedGrade,
+                  decoration: InputDecoration(
+                    labelText: 'الصف',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                  ),
+                  items: _classSections.keys
+                      .map((grade) => DropdownMenuItem(value: grade, child: Text(grade)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _selectedGrade = value;
+                      _selectedSection = _classSections[value]!.first;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedSection,
+                  decoration: InputDecoration(
+                    labelText: 'الشعبة',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                  ),
+                  items: sections
+                      .map((section) => DropdownMenuItem(value: section, child: Text(section)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _selectedSection = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

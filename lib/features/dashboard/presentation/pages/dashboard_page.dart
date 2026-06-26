@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../shared/theme/app_spacing.dart';
+import '../../../../core/navigation/route_names.dart';
 import '../../../../shared/theme/app_colors.dart';
+import '../../../../shared/theme/app_spacing.dart';
 import '../../../../shared/widgets/action_tile.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/dashboard_card.dart';
 import '../../../../shared/widgets/section_header.dart';
-import '../../../../shared/widgets/status_badge.dart';
-import '../../../../core/navigation/route_names.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../data/models/teacher_dashboard_summary.dart';
+import '../../data/repositories/dashboard_repository.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -20,6 +24,10 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+
+  TeacherDashboardSummary? _summary;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -36,6 +44,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
     _animationController.forward();
+    _loadDashboard();
   }
 
   @override
@@ -44,8 +53,99 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     super.dispose();
   }
 
+  Future<void> _loadDashboard() async {
+    final token = context.read<AuthCubit>().sessionToken;
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'لم يتم العثور على جلسة نشطة';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final repository = RepositoryProvider.of<DashboardRepository>(context);
+      final response = await repository.fetchTeacherDashboard(token);
+      if (!mounted) return;
+      setState(() {
+        _summary = response.data;
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  String _getTeacherDisplayName(AuthState state) {
+    if (state is AuthSuccess) {
+      final payload = state.payload;
+      final userMap = _extractUserMap(payload);
+      final name = _extractDisplayName(userMap);
+      if (name != null && name.isNotEmpty) {
+        return name;
+      }
+    }
+    return 'المعلم';
+  }
+
+  Map<String, dynamic>? _extractUserMap(dynamic source) {
+    if (source is Map) {
+      final map = Map<String, dynamic>.from(source);
+      final user = map['user'];
+      if (user is Map) {
+        return Map<String, dynamic>.from(user);
+      }
+      final data = map['data'];
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+      return map;
+    }
+    return null;
+  }
+
+  String? _extractDisplayName(Map<String, dynamic>? source) {
+    if (source == null) {
+      return null;
+    }
+
+    String? read(String key) {
+      final value = source[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+      return null;
+    }
+
+    return read('name') ??
+        read('full_name') ??
+        read('teacher_name') ??
+        read('display_name') ??
+        (() {
+          final firstName = read('first_name');
+          final lastName = read('last_name');
+          if (firstName != null || lastName != null) {
+            return '${firstName ?? ''} ${lastName ?? ''}'.trim();
+          }
+          return null;
+        })();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthCubit>().state;
+    final teacherName = _getTeacherDisplayName(authState);
+
     return AppScaffold(
       title: 'الرئيسية',
       currentIndex: 0,
@@ -58,35 +158,34 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Welcome Section
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       colors: [AppColors.primary, AppColors.secondary],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.2),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
+                        color: AppColors.primary.withValues(alpha: 0.22),
+                        blurRadius: 22,
+                        offset: const Offset(0, 12),
                       ),
                     ],
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
                         children: [
                           Hero(
                             tag: 'teacher-avatar',
                             child: CircleAvatar(
-                              radius: 30,
-                              backgroundColor: AppColors.onPrimary.withOpacity(0.2),
-                              child: const Icon(Icons.person, color: AppColors.onPrimary, size: 32),
+                              radius: 36,
+                              backgroundColor: AppColors.onPrimary.withValues(alpha: 0.18),
+                              child: const Icon(Icons.person, color: AppColors.onPrimary, size: 34),
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
@@ -95,214 +194,157 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'صباح الخير، أ. فاطمة',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: AppColors.onPrimary,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  'أهلاً بك يا $teacherName',
+                                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                        color: AppColors.onPrimary,
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                 ),
                                 const SizedBox(height: AppSpacing.xs),
                                 Text(
-                                  'معلمة الرياضيات - الصف الثالث',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.onPrimary.withOpacity(0.8),
-                                  ),
+                                  'لوحة تحكم المعلم الرسمية لمتابعة الصفوف والمهام.',
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                        color: AppColors.onPrimary.withValues(alpha: 0.85),
+                                      ),
                                 ),
                               ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        'هذه لمحة سريعة عن يومك الدراسي ومهامك الحالية.',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppColors.onPrimary.withOpacity(0.9),
-                        ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: [
+                          _MiniStatusChip(
+                            icon: Icons.group,
+                            label: _summary != null ? '${_summary!.presentStudentsCount} طالباً' : 'جارٍ التحميل...',
+                            color: AppColors.primary,
+                          ),
+                          _MiniStatusChip(
+                            icon: Icons.check_circle,
+                            label: _summary != null ? '${_summary!.attendancePercentage.toStringAsFixed(0)}% حضور' : 'جارٍ التحميل...',
+                            color: AppColors.success,
+                          ),
+                          _MiniStatusChip(
+                            icon: Icons.pending_actions,
+                            label: _summary != null ? '${_summary!.pendingTasksCount} مهام' : 'جارٍ التحميل...',
+                            color: AppColors.warning,
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                // Stats Grid
-                GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: AppSpacing.md,
-                  mainAxisSpacing: AppSpacing.md,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: const [
-                    DashboardCard(
-                      title: 'عدد الطلاب اليوم',
-                      value: '24',
-                      label: 'الصفوف النشطة',
-                      color: AppColors.primary,
-                      icon: Icons.groups,
-                    ),
-                    DashboardCard(
-                      title: 'مهام معلقة',
-                      value: '5',
-                      label: 'طلبات غياب وملاحظات',
-                      color: AppColors.warning,
-                      icon: Icons.pending_actions,
-                    ),
-                    DashboardCard(
-                      title: 'الحضور اليوم',
-                      value: '88%',
-                      label: 'نسبة حضور الطلاب',
-                      color: AppColors.success,
-                      icon: Icons.check_circle_outline,
-                    ),
-                    DashboardCard(
-                      title: 'إعلانات جديدة',
-                      value: '3',
-                      label: 'تنبيهات من الإدارة',
-                      color: AppColors.info,
-                      icon: Icons.campaign,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                // Today's Schedule
                 const SectionHeader(
-                  title: 'برنامج اليوم',
-                  subtitle: 'مقدمة إلى المادة ووقت الحصة',
-                  actionLabel: 'عرض الكل',
+                  title: 'ملخص الأداء',
+                  subtitle: 'أهم المقاييس الحالية من الخادم',
                 ),
-                Hero(
-                  tag: 'schedule-card',
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColors.surface, AppColors.surfaceVariant],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
+                if (_isLoading)
+                  const _DashboardSkeleton()
+                else if (_errorMessage != null)
+                  _DashboardErrorState(
+                    message: _errorMessage!,
+                    onRetry: _loadDashboard,
+                  )
+                else if (_summary != null)
+                  GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: AppSpacing.md,
+                    mainAxisSpacing: AppSpacing.md,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: 1.05,
+                    children: [
+                      DashboardCard(
+                        title: 'الطلاب الحاضرون اليوم',
+                        value: _summary!.presentStudentsCount.toString(),
+                        label: 'عدد الحضور الحالي',
+                        color: AppColors.primary,
+                        icon: Icons.group,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'الرياضيات - الصف الثالث',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '08:30 - 09:15',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              'خطة اليوم: مراجعة الجبر، توزيع الواجب، فتح نقاش تفاعلي.',
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: const [
-                                StatusBadge(label: 'مؤكد', color: AppColors.success),
-                                StatusBadge(label: 'نشط', color: AppColors.primary),
-                              ],
-                            ),
-                          ],
-                        ),
+                      DashboardCard(
+                        title: 'الطلاب النشطون',
+                        value: _summary!.activeStudentsCount.toString(),
+                        label: 'الطلاب النشطون حالياً',
+                        color: AppColors.info,
+                        icon: Icons.verified_user,
                       ),
-                    ),
+                      _AttendanceProgressCard(
+                        title: 'نسبة الحضور',
+                        value: '${_summary!.attendancePercentage.toStringAsFixed(0)}%',
+                        label: 'النسبة الحالية',
+                        color: AppColors.success,
+                        icon: Icons.percent,
+                        percentage: _summary!.attendancePercentage,
+                      ),
+                      DashboardCard(
+                        title: 'طلبات تبرير الغياب',
+                        value: _summary!.pendingAbsenceJustificationRequestsCount.toString(),
+                        label: 'طلب معلّق',
+                        color: AppColors.warning,
+                        icon: Icons.assignment_late,
+                      ),
+                      DashboardCard(
+                        title: 'المهام المعلقة',
+                        value: _summary!.pendingTasksCount.toString(),
+                        label: 'مهام تحتاج متابعة',
+                        color: AppColors.secondary,
+                        icon: Icons.task_alt,
+                      ),
+                      DashboardCard(
+                        title: 'الملاحظات غير المقروءة',
+                        value: _summary!.unreadNotesCount.toString(),
+                        label: 'ملاحظات جديدة',
+                        color: AppColors.primaryContainer,
+                        icon: Icons.mark_chat_unread,
+                      ),
+                      DashboardCard(
+                        title: 'إعلانات اليوم',
+                        value: _summary!.todayAnnouncementsCount.toString(),
+                        label: 'إعلانات جديدة',
+                        color: AppColors.secondaryContainer,
+                        icon: Icons.campaign,
+                      ),
+                    ],
                   ),
-                ),
                 const SizedBox(height: AppSpacing.lg),
-                // Pending Requests
-                const SectionHeader(
-                  title: 'طلبات تبرير الغياب',
-                  subtitle: 'انتظر الموافقة أو اطلع على التفاصيل',
-                  actionLabel: 'عرض الطلبات',
-                ),
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.warning.withOpacity(0.1),
-                            child: Icon(Icons.warning, color: AppColors.warning),
-                          ),
-                          title: const Text('طلب جديد من ولي الأمر'),
-                          subtitle: const Text('غياب يوم 12/5 - مرض'),
-                          trailing: const StatusBadge(label: 'قيد الانتظار', color: AppColors.warning),
-                          onTap: () => Navigator.pushNamed(context, RouteNames.absenceRequests),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.success.withOpacity(0.1),
-                            child: Icon(Icons.check, color: AppColors.success),
-                          ),
-                          title: const Text('طلب مرفق من ولي أمر الطالب محمد'),
-                          subtitle: const Text('غياب يوم 10/5 - عائلة'),
-                          trailing: const StatusBadge(label: 'مقبول', color: AppColors.success),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                // Quick Actions
                 const SectionHeader(title: 'اختصارات سريعة'),
-                Row(
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
                   children: [
                     ActionTile(
                       icon: Icons.how_to_reg,
                       label: 'تسجيل الحضور',
                       onTap: () => Navigator.pushNamed(context, RouteNames.attendance),
+                      color: AppColors.primaryContainer,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
                     ActionTile(
                       icon: Icons.edit_note,
                       label: 'إدارة العلامات',
                       onTap: () => Navigator.pushNamed(context, RouteNames.grades),
+                      color: AppColors.secondaryContainer,
                     ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
+                    ActionTile(
+                      icon: Icons.assignment,
+                      label: 'طلبات الغياب',
+                      onTap: () => Navigator.pushNamed(context, RouteNames.absenceRequests),
+                      color: AppColors.surfaceVariant,
+                    ),
                     ActionTile(
                       icon: Icons.campaign,
                       label: 'الأخبار',
                       onTap: () => Navigator.pushNamed(context, RouteNames.news),
+                      color: AppColors.secondaryContainer,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
                     ActionTile(
-                      icon: Icons.mail_outline,
-                      label: 'ملاحظات للأهل',
-                      onTap: () => Navigator.pushNamed(context, RouteNames.notes),
+                      icon: Icons.person,
+                      label: 'الملف الشخصي',
+                      onTap: () => Navigator.pushNamed(context, RouteNames.profile),
+                      color: AppColors.primaryContainer,
                     ),
                   ],
                 ),
@@ -311,6 +353,163 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: AppSpacing.md,
+      mainAxisSpacing: AppSpacing.md,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.05,
+      children: List.generate(6, (_) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(12))),
+            const SizedBox(height: AppSpacing.sm),
+            Container(height: 14, width: 90, color: AppColors.border),
+            const SizedBox(height: AppSpacing.sm),
+            Container(height: 18, width: 70, color: AppColors.border),
+            const SizedBox(height: AppSpacing.xs),
+            Container(height: 12, width: 100, color: AppColors.border),
+          ],
+        ),
+      )),
+    );
+  }
+}
+
+class _DashboardErrorState extends StatelessWidget {
+  const _DashboardErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          children: [
+            Icon(Icons.error_outline, size: 36, color: AppColors.warning),
+            const SizedBox(height: AppSpacing.sm),
+            Text('تعذر تحميل البيانات', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: AppSpacing.md),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttendanceProgressCard extends StatelessWidget {
+  const _AttendanceProgressCard({
+    required this.title,
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.percentage,
+  });
+
+  final String title;
+  final String value;
+  final String label;
+  final Color color;
+  final IconData icon;
+  final double percentage;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = (percentage.clamp(0.0, 100.0) / 100.0).toDouble();
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: AppSpacing.sm),
+            Text(title, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: AppSpacing.sm),
+            Text(value, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: AppSpacing.sm),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: normalized,
+                minHeight: 8,
+                backgroundColor: color.withValues(alpha: 0.16),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniStatusChip extends StatelessWidget {
+  const _MiniStatusChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

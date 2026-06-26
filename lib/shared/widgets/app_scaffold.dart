@@ -27,6 +27,9 @@ class AppScaffold extends StatelessWidget {
       case 2:
         Navigator.pushReplacementNamed(context, RouteNames.schedule);
         break;
+      case 3:
+        Navigator.pushReplacementNamed(context, RouteNames.news);
+        break;
     }
   }
 
@@ -57,6 +60,11 @@ class AppScaffold extends StatelessWidget {
             icon: Icon(Icons.schedule_outlined),
             selectedIcon: Icon(Icons.schedule),
             label: 'الجدول',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.campaign_outlined),
+            selectedIcon: Icon(Icons.campaign),
+            label: 'الأخبار',
           ),
         ],
       ),

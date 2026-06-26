@@ -18,16 +18,86 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  final Map<String, List<String>> _classSections = {
+    'الصف الأول': ['A', 'B'],
+    'الصف الثاني': ['A', 'B'],
+    'الصف الثالث': ['A', 'B'],
+    'الصف الرابع': ['A'],
+  };
+
+  String _selectedGrade = 'الصف الثالث';
+  String _selectedSection = 'A';
+
   final List<Map<String, dynamic>> _students = [
-    {'name': 'محمد علي', 'status': 'حاضر', 'color': AppColors.success, 'id': '1'},
-    {'name': 'سارة خالد', 'status': 'متأخر', 'color': AppColors.warning, 'id': '2'},
-    {'name': 'أحمد يوسف', 'status': 'غائب', 'color': AppColors.error, 'id': '3'},
-    {'name': 'فاطمة سالم', 'status': 'حاضر', 'color': AppColors.success, 'id': '4'},
-    {'name': 'علي حسن', 'status': 'حاضر', 'color': AppColors.success, 'id': '5'},
-    {'name': 'مريم أحمد', 'status': 'متأخر', 'color': AppColors.warning, 'id': '6'},
-    {'name': 'خالد محمد', 'status': 'غائب', 'color': AppColors.error, 'id': '7'},
-    {'name': 'نورة سعيد', 'status': 'حاضر', 'color': AppColors.success, 'id': '8'},
+    {
+      'name': 'محمد علي',
+      'status': 'حاضر',
+      'color': AppColors.success,
+      'id': '1',
+      'grade': 'الصف الثالث',
+      'section': 'A',
+    },
+    {
+      'name': 'سارة خالد',
+      'status': 'متأخر',
+      'color': AppColors.warning,
+      'id': '2',
+      'grade': 'الصف الثالث',
+      'section': 'A',
+    },
+    {
+      'name': 'أحمد يوسف',
+      'status': 'غائب',
+      'color': AppColors.error,
+      'id': '3',
+      'grade': 'الصف الثالث',
+      'section': 'B',
+    },
+    {
+      'name': 'فاطمة سالم',
+      'status': 'حاضر',
+      'color': AppColors.success,
+      'id': '4',
+      'grade': 'الصف الأول',
+      'section': 'A',
+    },
+    {
+      'name': 'علي حسن',
+      'status': 'حاضر',
+      'color': AppColors.success,
+      'id': '5',
+      'grade': 'الصف الثاني',
+      'section': 'B',
+    },
+    {
+      'name': 'مريم أحمد',
+      'status': 'متأخر',
+      'color': AppColors.warning,
+      'id': '6',
+      'grade': 'الصف الثاني',
+      'section': 'A',
+    },
+    {
+      'name': 'خالد محمد',
+      'status': 'غائب',
+      'color': AppColors.error,
+      'id': '7',
+      'grade': 'الصف الرابع',
+      'section': 'A',
+    },
+    {
+      'name': 'نورة سعيد',
+      'status': 'حاضر',
+      'color': AppColors.success,
+      'id': '8',
+      'grade': 'الصف الأول',
+      'section': 'B',
+    },
   ];
+
+  List<Map<String, dynamic>> get _filteredStudents => _students
+      .where((s) => s['grade'] == _selectedGrade && s['section'] == _selectedSection)
+      .toList();
 
   @override
   void initState() {
@@ -56,10 +126,12 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     });
   }
 
-  int get _presentCount => _students.where((s) => s['status'] == 'حاضر').length;
-  int get _lateCount => _students.where((s) => s['status'] == 'متأخر').length;
-  int get _absentCount => _students.where((s) => s['status'] == 'غائب').length;
-  double get _attendancePercentage => (_presentCount + _lateCount) / _students.length * 100;
+  int get _presentCount => _filteredStudents.where((s) => s['status'] == 'حاضر').length;
+  int get _lateCount => _filteredStudents.where((s) => s['status'] == 'متأخر').length;
+  int get _absentCount => _filteredStudents.where((s) => s['status'] == 'غائب').length;
+  double get _attendancePercentage => _filteredStudents.isEmpty
+      ? 0
+      : (_presentCount + _lateCount) / _filteredStudents.length * 100;
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +142,7 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
         opacity: _fadeAnimation,
         child: Column(
           children: [
+            _buildClassSectionSelectors(),
             // Stats Header
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -125,11 +198,15 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
             ),
             // Attendance List
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: _students.length,
-                itemBuilder: (context, index) {
-                  final student = _students[index];
+              child: _filteredStudents.isEmpty
+                  ? const Center(
+                      child: Text('لا توجد طلاب في هذا الصف أو الشعبة'),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      itemCount: _filteredStudents.length,
+                      itemBuilder: (context, index) {
+                        final student = _filteredStudents[index];
                   return AnimatedBuilder(
                     animation: _animationController,
                     builder: (context, child) {
@@ -193,6 +270,78 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildClassSectionSelectors() {
+    final sections = _classSections[_selectedGrade] ?? ['A'];
+    final defaultSection = sections.contains(_selectedSection) ? _selectedSection : sections.first;
+    if (_selectedSection != defaultSection) {
+      _selectedSection = defaultSection;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'اختر الصف والشعبة',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedGrade,
+                  decoration: InputDecoration(
+                    labelText: 'الصف',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                  ),
+                  items: _classSections.keys
+                      .map((grade) => DropdownMenuItem(value: grade, child: Text(grade)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _selectedGrade = value;
+                      _selectedSection = _classSections[value]!.first;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedSection,
+                  decoration: InputDecoration(
+                    labelText: 'الشعبة',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                  ),
+                  items: sections
+                      .map((section) => DropdownMenuItem(value: section, child: Text(section)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _selectedSection = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
