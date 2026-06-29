@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 class DashboardCard extends StatelessWidget {
@@ -20,20 +21,48 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
+    return SingleChildScrollView(
+      child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+          boxShadow: [
+            BoxShadow(color: AppColors.primary.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 8)),
+          ],
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 28),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(14)),
+              child: Icon(icon, color: color, size: 24),
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(title, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: AppSpacing.sm),
-            Text(value, style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: AppSpacing.xs),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withValues(alpha: 0.68)),
+            ),
           ],
         ),
       ),

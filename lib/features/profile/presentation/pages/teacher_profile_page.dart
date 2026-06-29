@@ -8,6 +8,7 @@ import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/app_feedback.dart';
 import '../../../../core/navigation/route_names.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
@@ -38,6 +39,23 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   bool _isSaving = false;
   Map<String, String?> _fieldErrors = {};
   bool _saveSuccess = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _roleController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _addressController.dispose();
+    _experienceController.dispose();
+    super.dispose();
+  }
 
   String? _initialsFromName(String? name) {
     if (name == null || name.trim().isEmpty) return null;
@@ -87,9 +105,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      showAppFeedback(context, message: e.toString(), isError: true);
     } finally {
       if (mounted) {
         setState(() => _loadingProfile = false);
@@ -132,9 +148,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
         _saveSuccess = true;
         _isEditing = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ المعلومات بنجاح')),
-      );
+      showAppFeedback(context, message: 'تم حفظ المعلومات بنجاح', isError: false);
       // clear success indicator after short delay
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
@@ -142,9 +156,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       });
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      showAppFeedback(context, message: error.toString(), isError: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -187,11 +199,11 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل اختيار الصورة: ${error.toString()}'),
-          duration: const Duration(seconds: 4),
-        ),
+      showAppFeedback(
+        context,
+        message: 'فشل اختيار الصورة: ${error.toString()}',
+        isError: true,
+        duration: const Duration(seconds: 4),
       );
     }
   }
@@ -232,9 +244,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           }
 
           if (state is AuthFailure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            showAppFeedback(context, message: state.message, isError: true);
           }
         },
         builder: (context, state) {
@@ -319,6 +329,22 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                                               width: 92,
                                               height: 92,
                                               fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return Container(
+                                                  width: 92,
+                                                  height: 92,
+                                                  color: AppColors.surfaceVariant,
+                                                  child: Center(
+                                                    child: Text(
+                                                      _initialsFromName(_nameController.text) ?? 'م',
+                                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                            fontWeight: FontWeight.w700,
+                                                            color: AppColors.onSurface,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
                                             ),
                                           )
                                         : CircleAvatar(

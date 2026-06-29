@@ -8,6 +8,7 @@ import '../../../../shared/widgets/action_tile.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/dashboard_card.dart';
 import '../../../../shared/widgets/section_header.dart';
+import '../../../../shared/widgets/app_feedback.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
 import '../../data/models/teacher_dashboard_summary.dart';
@@ -61,6 +62,9 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
         _isLoading = false;
         _errorMessage = 'لم يتم العثور على جلسة نشطة';
       });
+      if (mounted) {
+        showAppFeedback(context, message: 'لم يتم العثور على جلسة نشطة', isError: true);
+      }
       return;
     }
 
@@ -83,6 +87,9 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
         _isLoading = false;
         _errorMessage = error.toString().replaceFirst('Exception: ', '');
       });
+      if (mounted) {
+        showAppFeedback(context, message: error.toString().replaceFirst('Exception: ', ''), isError: true);
+      }
     }
   }
 
@@ -169,7 +176,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.22),
+                        color: AppColors.primary.withValues(alpha: 0.18),
                         blurRadius: 22,
                         offset: const Offset(0, 12),
                       ),
@@ -446,31 +453,33 @@ class _AttendanceProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = (percentage.clamp(0.0, 100.0) / 100.0).toDouble();
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: AppSpacing.sm),
-            Text(title, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: AppSpacing.sm),
-            Text(value, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.sm),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: normalized,
-                minHeight: 8,
-                backgroundColor: color.withValues(alpha: 0.16),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
+    return SingleChildScrollView(
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: AppSpacing.sm),
+              Text(title, style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: AppSpacing.sm),
+              Text(value, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: AppSpacing.sm),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: normalized,
+                  minHeight: 8,
+                  backgroundColor: color.withValues(alpha: 0.16),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-          ],
+              const SizedBox(height: AppSpacing.xs),
+              Text(label, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
         ),
       ),
     );

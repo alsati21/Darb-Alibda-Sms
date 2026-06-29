@@ -1,11 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
-import '../../../../shared/widgets/section_header.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/app_feedback.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../data/models/teacher_attendance_section.dart';
+import '../../data/repositories/attendance_repository.dart';
 
 class AttendancePage extends StatefulWidget {
   const AttendancePage({super.key});
@@ -18,86 +24,34 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  final Map<String, List<String>> _classSections = {
-    'الصف الأول': ['A', 'B'],
-    'الصف الثاني': ['A', 'B'],
-    'الصف الثالث': ['A', 'B'],
-    'الصف الرابع': ['A'],
-  };
+  final List<TeacherAttendanceSection> _sections = <TeacherAttendanceSection>[];
+  final List<TeacherAttendanceSection> _allSections = <TeacherAttendanceSection>[];
+  bool _isLoading = true;
+  String? _errorMessage;
+  bool _isSaving = false;
 
-  String _selectedGrade = 'الصف الثالث';
-  String _selectedSection = 'A';
+  int _selectedSectionId = 0;
+  int _selectedScheduleId = 0;
+  String _selectedDate = '';
 
-  final List<Map<String, dynamic>> _students = [
-    {
-      'name': 'محمد علي',
-      'status': 'حاضر',
-      'color': AppColors.success,
-      'id': '1',
-      'grade': 'الصف الثالث',
-      'section': 'A',
-    },
-    {
-      'name': 'سارة خالد',
-      'status': 'متأخر',
-      'color': AppColors.warning,
-      'id': '2',
-      'grade': 'الصف الثالث',
-      'section': 'A',
-    },
-    {
-      'name': 'أحمد يوسف',
-      'status': 'غائب',
-      'color': AppColors.error,
-      'id': '3',
-      'grade': 'الصف الثالث',
-      'section': 'B',
-    },
-    {
-      'name': 'فاطمة سالم',
-      'status': 'حاضر',
-      'color': AppColors.success,
-      'id': '4',
-      'grade': 'الصف الأول',
-      'section': 'A',
-    },
-    {
-      'name': 'علي حسن',
-      'status': 'حاضر',
-      'color': AppColors.success,
-      'id': '5',
-      'grade': 'الصف الثاني',
-      'section': 'B',
-    },
-    {
-      'name': 'مريم أحمد',
-      'status': 'متأخر',
-      'color': AppColors.warning,
-      'id': '6',
-      'grade': 'الصف الثاني',
-      'section': 'A',
-    },
-    {
-      'name': 'خالد محمد',
-      'status': 'غائب',
-      'color': AppColors.error,
-      'id': '7',
-      'grade': 'الصف الرابع',
-      'section': 'A',
-    },
-    {
-      'name': 'نورة سعيد',
-      'status': 'حاضر',
-      'color': AppColors.success,
-      'id': '8',
-      'grade': 'الصف الأول',
-      'section': 'B',
-    },
-  ];
-
-  List<Map<String, dynamic>> get _filteredStudents => _students
-      .where((s) => s['grade'] == _selectedGrade && s['section'] == _selectedSection)
-      .toList();
+  List<TeacherAttendanceStudent> get _filteredStudents {
+    if (_selectedSectionId == 0) return const <TeacherAttendanceStudent>[];
+    final section = _sections.firstWhere(
+      (item) => item.sectionId == _selectedSectionId,
+      orElse: () => _allSections.firstOrNull ?? TeacherAttendanceSection(
+        sectionId: 0,
+        sectionName: '',
+        sectionFullName: '',
+        classId: 0,
+        className: '',
+        totalStudents: 0,
+        attendance: TeacherAttendanceSummary(date: '', present: 0, absent: 0, late: 0, excused: 0, percentage: 0),
+        schedules: const <TeacherAttendanceSchedule>[],
+        students: const <TeacherAttendanceStudent>[],
+      ),
+    );
+    return section.students;
+  }
 
   @override
   void initState() {
@@ -110,6 +64,7 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
+    _loadSections();
   }
 
   @override
@@ -118,17 +73,113 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     super.dispose();
   }
 
-  void _updateAttendance(String studentId, String newStatus, Color newColor) {
+  Future<void> _loadSections() async {
+    final token = context.read<AuthCubit>().sessionToken;
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'لم يتم العثور على جلسة نشطة';
+      });
+      return;
+    }
+
     setState(() {
-      final student = _students.firstWhere((s) => s['id'] == studentId);
-      student['status'] = newStatus;
-      student['color'] = newColor;
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final repository = RepositoryProvider.of<AttendanceRepository>(context, listen: false);
+      final sections = await repository.fetchSectionsWithStudents(token);
+      if (!mounted) return;
+      setState(() {
+        _allSections.clear();
+        _allSections.addAll(sections);
+        _sections.clear();
+        _sections.addAll(sections);
+        _selectedSectionId = sections.isNotEmpty ? sections.first.sectionId : 0;
+        _selectedScheduleId = sections.isNotEmpty && sections.first.schedules.isNotEmpty ? sections.first.schedules.first.scheduleId : 0;
+        _selectedDate = sections.isNotEmpty ? sections.first.attendance.date : '';
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  void _updateAttendance(int studentId, String newStatus) {
+    setState(() {
+      final section = _sections.firstWhere(
+        (item) => item.sectionId == _selectedSectionId,
+        orElse: () => _allSections.firstWhere((item) => item.sectionId == _selectedSectionId),
+      );
+      final student = section.students.firstWhere((item) => item.studentId == studentId);
+      student.attendanceStatus = newStatus;
     });
   }
 
-  int get _presentCount => _filteredStudents.where((s) => s['status'] == 'حاضر').length;
-  int get _lateCount => _filteredStudents.where((s) => s['status'] == 'متأخر').length;
-  int get _absentCount => _filteredStudents.where((s) => s['status'] == 'غائب').length;
+  Future<void> _saveAttendance() async {
+    final token = context.read<AuthCubit>().sessionToken;
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      showAppFeedback(context, message: 'لم يتم العثور على جلسة نشطة', isError: true);
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final repository = RepositoryProvider.of<AttendanceRepository>(context, listen: false);
+      final payload = <Map<String, dynamic>>[];
+      final seenStudentIds = <int>{};
+      for (final student in _filteredStudents) {
+        if (seenStudentIds.contains(student.studentId)) {
+          continue;
+        }
+        seenStudentIds.add(student.studentId);
+        payload.add({
+          'student_id': student.studentId,
+          'status': _mapAttendanceStatus(student.attendanceStatus),
+        });
+      }
+
+      final result = await repository.batchUpdateAttendance(
+        token: token,
+        sectionId: _selectedSectionId,
+        date: _selectedDate.isEmpty ? DateTime.now().toIso8601String().split('T').first : _selectedDate,
+        scheduleId: _selectedScheduleId,
+        students: payload,
+      );
+
+      if (!mounted) return;
+      showAppFeedback(
+        context,
+        message: 'تم حفظ الحضور بنجاح • ${result.present} حاضر • ${result.late} متأخر',
+        isError: false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      showAppFeedback(
+        context,
+        message: error.toString().replaceFirst('Exception: ', ''),
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  int get _presentCount => _filteredStudents.where((s) => s.attendanceStatus == 'present').length;
+  int get _lateCount => _filteredStudents.where((s) => s.attendanceStatus == 'late').length;
+  int get _absentCount => _filteredStudents.where((s) => s.attendanceStatus == 'absent').length;
   double get _attendancePercentage => _filteredStudents.isEmpty
       ? 0
       : (_presentCount + _lateCount) / _filteredStudents.length * 100;
@@ -143,8 +194,30 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
         child: Column(
           children: [
             _buildClassSectionSelectors(),
-            // Stats Header
-            Container(
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(AppSpacing.lg),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  children: [
+                    const Icon(Icons.error_outline, size: 36, color: AppColors.warning),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(_errorMessage!, textAlign: TextAlign.center),
+                    const SizedBox(height: AppSpacing.sm),
+                    ElevatedButton.icon(
+                      onPressed: () => _loadSections(),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('إعادة المحاولة'),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -196,58 +269,58 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
                 ],
               ),
             ),
-            // Attendance List
-            Expanded(
-              child: _filteredStudents.isEmpty
-                  ? const Center(
-                      child: Text('لا توجد طلاب في هذا الصف أو الشعبة'),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      itemCount: _filteredStudents.length,
-                      itemBuilder: (context, index) {
-                        final student = _filteredStudents[index];
-                  return AnimatedBuilder(
-                    animation: _animationController,
-                    builder: (context, child) {
-                      return FadeTransition(
-                        opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                          CurvedAnimation(
-                            parent: _animationController,
-                            curve: Interval(
-                              index * 0.05,
-                              1.0,
-                              curve: Curves.easeInOut,
-                            ),
-                          ),
-                        ),
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.1),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: _animationController,
-                              curve: Interval(
-                                index * 0.05,
-                                1.0,
-                                curve: Curves.easeOut,
-                              ),
-                            ),
-                          ),
-                          child: _AttendanceCard(
-                            student: student,
-                            onStatusChanged: _updateAttendance,
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
+            if (!_isLoading && _errorMessage == null)
+              Expanded(
+                child: _filteredStudents.isEmpty
+                    ? const Center(
+                        child: Text('لا توجد طلاب في هذا الصف أو الشعبة'),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemCount: _filteredStudents.length,
+                        itemBuilder: (context, index) {
+                          final student = _filteredStudents[index];
+                          return AnimatedBuilder(
+                            animation: _animationController,
+                            builder: (context, child) {
+                              return FadeTransition(
+                                opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                                  CurvedAnimation(
+                                    parent: _animationController,
+                                    curve: Interval(
+                                      index * 0.05,
+                                      1.0,
+                                      curve: Curves.easeInOut,
+                                    ),
+                                  ),
+                                ),
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0, 0.1),
+                                    end: Offset.zero,
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: _animationController,
+                                      curve: Interval(
+                                        index * 0.05,
+                                        1.0,
+                                        curve: Curves.easeOut,
+                                      ),
+                                    ),
+                                  ),
+                                  child: _AttendanceCard(
+                                    student: student,
+                                    onStatusChanged: _updateAttendance,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
               ),
-            ),
-            // Save Button
-            Container(
+            if (!_isLoading && _errorMessage == null)
+              Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 color: AppColors.surface,
@@ -256,14 +329,9 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
                 ),
               ),
               child: PrimaryButton(
-                label: 'حفظ الحضور',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تم حفظ سجل الحضور بنجاح'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
+                label: _isSaving ? 'جاري الحفظ...' : 'حفظ الحضور',
+                onPressed: _isSaving ? () {} : () {
+                  unawaited(_saveAttendance());
                 },
                 icon: Icons.save,
               ),
@@ -274,13 +342,20 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     );
   }
 
-  Widget _buildClassSectionSelectors() {
-    final sections = _classSections[_selectedGrade] ?? ['A'];
-    final defaultSection = sections.contains(_selectedSection) ? _selectedSection : sections.first;
-    if (_selectedSection != defaultSection) {
-      _selectedSection = defaultSection;
+  String _mapAttendanceStatus(String status) {
+    switch (status) {
+      case 'present':
+        return 'present';
+      case 'late':
+        return 'late';
+      case 'absent':
+        return 'absent';
+      default:
+        return 'present';
     }
+  }
 
+  Widget _buildClassSectionSelectors() {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -300,42 +375,63 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedGrade,
-                  decoration: InputDecoration(
-                    labelText: 'الصف',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: AppColors.surfaceVariant,
-                  ),
-                  items: _classSections.keys
-                      .map((grade) => DropdownMenuItem(value: grade, child: Text(grade)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _selectedGrade = value;
-                      _selectedSection = _classSections[value]!.first;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedSection,
+                child: DropdownButtonFormField<int>(
+                  value: _selectedSectionId == 0 ? null : _selectedSectionId,
                   decoration: InputDecoration(
                     labelText: 'الشعبة',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
                   ),
-                  items: sections
-                      .map((section) => DropdownMenuItem(value: section, child: Text(section)))
+                  items: _sections
+                      .map((section) => DropdownMenuItem<int>(
+                            value: section.sectionId,
+                            child: Text(section.sectionFullName.isNotEmpty ? section.sectionFullName : section.sectionName),
+                          ))
                       .toList(),
                   onChanged: (value) {
                     if (value == null) return;
-                    setState(() => _selectedSection = value);
+                    final selected = _sections.firstWhere((item) => item.sectionId == value);
+                    setState(() {
+                      _selectedSectionId = value;
+                      _selectedScheduleId = selected.schedules.isNotEmpty ? selected.schedules.first.scheduleId : 0;
+                      _selectedDate = selected.attendance.date;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  value: _selectedScheduleId == 0 ? null : _selectedScheduleId,
+                  decoration: InputDecoration(
+                    labelText: 'الحصة',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                  ),
+                  items: _sections.firstWhere(
+                    (item) => item.sectionId == _selectedSectionId,
+                    orElse: () => _sections.isNotEmpty ? _sections.first : TeacherAttendanceSection(
+                      sectionId: 0,
+                      sectionName: '',
+                      sectionFullName: '',
+                      classId: 0,
+                      className: '',
+                      totalStudents: 0,
+                      attendance: TeacherAttendanceSummary(date: '', present: 0, absent: 0, late: 0, excused: 0, percentage: 0),
+                      schedules: const <TeacherAttendanceSchedule>[],
+                      students: const <TeacherAttendanceStudent>[],
+                    ),
+                  ).schedules
+                      .map((schedule) => DropdownMenuItem<int>(
+                            value: schedule.scheduleId,
+                            child: Text(schedule.subjectName),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _selectedScheduleId = value);
                   },
                 ),
               ),
@@ -380,11 +476,38 @@ class _AttendanceCard extends StatelessWidget {
     required this.onStatusChanged,
   });
 
-  final Map<String, dynamic> student;
-  final Function(String, String, Color) onStatusChanged;
+  final TeacherAttendanceStudent student;
+  final Function(int, String) onStatusChanged;
+
+  Color _colorForStatus(String status) {
+    switch (status) {
+      case 'present':
+        return AppColors.success;
+      case 'late':
+        return AppColors.warning;
+      case 'absent':
+        return AppColors.error;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  String _labelForStatus(String status) {
+    switch (status) {
+      case 'present':
+        return 'حاضر';
+      case 'late':
+        return 'متأخر';
+      case 'absent':
+        return 'غائب';
+      default:
+        return 'غير محدد';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final color = _colorForStatus(student.attendanceStatus);
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -395,14 +518,14 @@ class _AttendanceCard extends StatelessWidget {
           children: [
             // Student Avatar
             Hero(
-              tag: 'student-${student['id']}',
+              tag: 'student-${student.studentId}',
               child: CircleAvatar(
                 radius: 24,
-                backgroundColor: student['color'].withOpacity(0.1),
+                backgroundColor: color.withOpacity(0.1),
                 child: Text(
-                  (student['name'] as String).isNotEmpty ? (student['name'] as String).substring(0, 1) : '',
+                  student.fullName.isNotEmpty ? student.fullName.substring(0, 1) : '',
                   style: TextStyle(
-                    color: student['color'],
+                    color: color,
                     fontWeight: FontWeight.w600,
                     fontSize: 18,
                   ),
@@ -416,14 +539,14 @@ class _AttendanceCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    student['name'],
+                    student.fullName,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'رقم الطالب: ${student['id']}',
+                    'رقم الطالب: ${student.studentId}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.onSurface.withOpacity(0.6),
                     ),
@@ -435,31 +558,17 @@ class _AttendanceCard extends StatelessWidget {
             Row(
               children: [
                 StatusBadge(
-                  label: student['status'],
-                  color: student['color'],
+                  label: _labelForStatus(student.attendanceStatus),
+                  color: color,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 PopupMenuButton<String>(
                   onSelected: (status) {
-                    Color color;
-                    switch (status) {
-                      case 'حاضر':
-                        color = AppColors.success;
-                        break;
-                      case 'متأخر':
-                        color = AppColors.warning;
-                        break;
-                      case 'غائب':
-                        color = AppColors.error;
-                        break;
-                      default:
-                        color = AppColors.primary;
-                    }
-                    onStatusChanged(student['id'], status, color);
+                    onStatusChanged(student.studentId, status);
                   },
                   itemBuilder: (context) => [
                     const PopupMenuItem(
-                      value: 'حاضر',
+                      value: 'present',
                       child: Row(
                         children: [
                           Icon(Icons.check_circle, color: AppColors.success),
@@ -469,7 +578,7 @@ class _AttendanceCard extends StatelessWidget {
                       ),
                     ),
                     const PopupMenuItem(
-                      value: 'متأخر',
+                      value: 'late',
                       child: Row(
                         children: [
                           Icon(Icons.schedule, color: AppColors.warning),
@@ -479,7 +588,7 @@ class _AttendanceCard extends StatelessWidget {
                       ),
                     ),
                     const PopupMenuItem(
-                      value: 'غائب',
+                      value: 'absent',
                       child: Row(
                         children: [
                           Icon(Icons.cancel, color: AppColors.error),

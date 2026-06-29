@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_spacing.dart';
@@ -6,6 +7,10 @@ import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/section_header.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/app_feedback.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../data/models/absence_justification_request.dart';
+import '../../data/repositories/absence_requests_repository.dart';
 
 class AbsenceRequestsPage extends StatefulWidget {
   const AbsenceRequestsPage({super.key});
@@ -19,56 +24,9 @@ class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerPr
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  final List<Map<String, dynamic>> _requests = [
-    {
-      'studentName': 'سلمان محمد',
-      'className': 'الصف الثالث - شعبة A',
-      'date': '12 مايو 2024',
-      'reason': 'مرض مفاجئ، مع إرفاق تقرير طبي.',
-      'statusLabel': 'قيد الانتظار',
-      'statusColor': AppColors.warning,
-      'icon': Icons.warning,
-      'hasAttachment': true,
-      'parentName': 'أ. محمد سالم',
-      'parentPhone': '0912345678',
-    },
-    {
-      'studentName': 'ندى العلي',
-      'className': 'الصف الثاني - شعبة B',
-      'date': '10 مايو 2024',
-      'reason': 'زيارة عائلية مبررة.',
-      'statusLabel': 'مقبول',
-      'statusColor': AppColors.success,
-      'icon': Icons.check_circle,
-      'hasAttachment': false,
-      'parentName': 'أ. علي العلي',
-      'parentPhone': '0912345679',
-    },
-    {
-      'studentName': 'ياسين خالد',
-      'className': 'الصف الرابع - اللغة العربية',
-      'date': '09 مايو 2024',
-      'reason': 'أعراض إنفلونزا مع مستند طبي.',
-      'statusLabel': 'مرفوض',
-      'statusColor': AppColors.error,
-      'icon': Icons.cancel,
-      'hasAttachment': true,
-      'parentName': 'أ. خالد ياسين',
-      'parentPhone': '0912345680',
-    },
-    {
-      'studentName': 'مريم أحمد',
-      'className': 'الصف الأول - الإنجليزية',
-      'date': '08 مايو 2024',
-      'reason': 'موعد طبي ضروري.',
-      'statusLabel': 'قيد الانتظار',
-      'statusColor': AppColors.warning,
-      'icon': Icons.warning,
-      'hasAttachment': true,
-      'parentName': 'أ. أحمد مريم',
-      'parentPhone': '0912345681',
-    },
-  ];
+  List<AbsenceJustificationRequest> _requests = <AbsenceJustificationRequest>[];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -81,6 +39,7 @@ class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerPr
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
+    _loadRequests();
   }
 
   @override
@@ -89,41 +48,119 @@ class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerPr
     super.dispose();
   }
 
-  List<Map<String, dynamic>> get _filteredRequests {
-    if (_selectedFilter == 'الكل') return _requests;
-    return _requests.where((r) => r['statusLabel'] == _selectedFilter).toList();
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'approved':
+        return 'مقبول';
+      case 'rejected':
+        return 'مرفوض';
+      default:
+        return 'قيد الانتظار';
+    }
   }
 
-  void _updateRequestStatus(int index, String newStatus, Color newColor, IconData newIcon) {
-    setState(() {
-      _filteredRequests[index]['statusLabel'] = newStatus;
-      _filteredRequests[index]['statusColor'] = newColor;
-      _filteredRequests[index]['icon'] = newIcon;
-    });
+  List<AbsenceJustificationRequest> get _filteredRequests {
+    if (_selectedFilter == 'الكل') return _requests;
+    return _requests.where((request) => _statusLabel(request.status) == _selectedFilter).toList();
+  }
 
-    String message;
-    switch (newStatus) {
-      case 'مقبول':
-        message = 'تم قبول طلب التبرير';
-        break;
-      case 'مرفوض':
-        message = 'تم رفض طلب التبرير';
-        break;
-      default:
-        message = 'تم تحديث حالة الطلب';
+  Future<void> _loadRequests() async {
+    final token = context.read<AuthCubit>().sessionToken;
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'لم يتم العثور على جلسة نشطة';
+      });
+      return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: newColor,
-      ),
-    );
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final repository = RepositoryProvider.of<AbsenceRequestsRepository>(context, listen: false);
+      final requests = await repository.fetchRequests(token);
+      if (!mounted) return;
+      setState(() {
+        _requests = requests;
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
   }
 
-  int get _pendingCount => _requests.where((r) => r['statusLabel'] == 'قيد الانتظار').length;
-  int get _approvedCount => _requests.where((r) => r['statusLabel'] == 'مقبول').length;
-  int get _rejectedCount => _requests.where((r) => r['statusLabel'] == 'مرفوض').length;
+  Future<void> _updateRequestStatus(AbsenceJustificationRequest request, String newStatus) async {
+    final token = context.read<AuthCubit>().sessionToken;
+    if (token == null || token.isEmpty) {
+      showAppFeedback(context, message: 'لم يتم العثور على جلسة نشطة', isError: true);
+      return;
+    }
+
+    try {
+      final repository = RepositoryProvider.of<AbsenceRequestsRepository>(context, listen: false);
+      await repository.updateRequest(token: token, requestId: request.id, status: newStatus);
+      if (!mounted) return;
+      setState(() {
+        final index = _requests.indexWhere((item) => item.id == request.id);
+        if (index >= 0) {
+          _requests[index] = AbsenceJustificationRequest(
+            id: request.id,
+            studentName: request.studentName,
+            className: request.className,
+            absenceDate: request.absenceDate,
+            reason: request.reason,
+            status: newStatus,
+            reviewNote: request.reviewNote,
+            parentName: request.parentName,
+            parentPhone: request.parentPhone,
+            hasAttachment: request.hasAttachment,
+            createdAt: request.createdAt,
+          );
+        }
+      });
+      showAppFeedback(
+        context,
+        message: newStatus == 'approved' ? 'تم قبول طلب التبرير' : 'تم رفض طلب التبرير',
+        isError: false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      showAppFeedback(context, message: error.toString().replaceFirst('Exception: ', ''), isError: true);
+    }
+  }
+
+  Future<void> _deleteRequest(AbsenceJustificationRequest request) async {
+    final token = context.read<AuthCubit>().sessionToken;
+    if (token == null || token.isEmpty) {
+      showAppFeedback(context, message: 'لم يتم العثور على جلسة نشطة', isError: true);
+      return;
+    }
+
+    try {
+      final repository = RepositoryProvider.of<AbsenceRequestsRepository>(context, listen: false);
+      await repository.deleteRequest(token: token, requestId: request.id);
+      if (!mounted) return;
+      setState(() {
+        _requests.removeWhere((item) => item.id == request.id);
+      });
+      showAppFeedback(context, message: 'تم حذف طلب التبرير', isError: false);
+    } catch (error) {
+      if (!mounted) return;
+      showAppFeedback(context, message: error.toString().replaceFirst('Exception: ', ''), isError: true);
+    }
+  }
+
+  int get _pendingCount => _requests.where((request) => request.status == 'pending').length;
+  int get _approvedCount => _requests.where((request) => request.status == 'approved').length;
+  int get _rejectedCount => _requests.where((request) => request.status == 'rejected').length;
 
   @override
   Widget build(BuildContext context) {
@@ -187,54 +224,76 @@ class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerPr
             ),
             // Requests List
             Expanded(
-              child: _filteredRequests.isEmpty
-                ? const Center(
-                    child: Text('لا توجد طلبات في هذه الفئة'),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    itemCount: _filteredRequests.length,
-                    itemBuilder: (context, index) {
-                      final request = _filteredRequests[index];
-                      return AnimatedBuilder(
-                        animation: _animationController,
-                        builder: (context, child) {
-                          return FadeTransition(
-                            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                              CurvedAnimation(
-                                parent: _animationController,
-                                curve: Interval(
-                                  index * 0.1,
-                                  1.0,
-                                  curve: Curves.easeInOut,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.error_outline, size: 36, color: AppColors.warning),
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(_errorMessage!, textAlign: TextAlign.center),
+                                const SizedBox(height: AppSpacing.sm),
+                                ElevatedButton.icon(
+                                  onPressed: _loadRequests,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('إعادة المحاولة'),
                                 ),
-                              ),
+                              ],
                             ),
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.1),
-                                end: Offset.zero,
-                              ).animate(
-                                CurvedAnimation(
-                                  parent: _animationController,
-                                  curve: Interval(
-                                    index * 0.1,
-                                    1.0,
-                                    curve: Curves.easeOut,
-                                  ),
-                                ),
-                              ),
-                              child: _RequestCard(
-                                request: request,
-                                onStatusChanged: (status, color, icon) =>
-                                  _updateRequestStatus(index, status, color, icon),
-                              ),
+                          ),
+                        )
+                      : _filteredRequests.isEmpty
+                          ? const Center(
+                              child: Text('لا توجد طلبات في هذه الفئة'),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              itemCount: _filteredRequests.length,
+                              itemBuilder: (context, index) {
+                                final request = _filteredRequests[index];
+                                return AnimatedBuilder(
+                                  animation: _animationController,
+                                  builder: (context, child) {
+                                    return FadeTransition(
+                                      opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                                        CurvedAnimation(
+                                          parent: _animationController,
+                                          curve: Interval(
+                                            index * 0.1,
+                                            1.0,
+                                            curve: Curves.easeInOut,
+                                          ),
+                                        ),
+                                      ),
+                                      child: SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(0, 0.1),
+                                          end: Offset.zero,
+                                        ).animate(
+                                          CurvedAnimation(
+                                            parent: _animationController,
+                                            curve: Interval(
+                                              index * 0.1,
+                                              1.0,
+                                              curve: Curves.easeOut,
+                                            ),
+                                          ),
+                                        ),
+                                        child: _RequestCard(
+                                          request: request,
+                                          onStatusChanged: (status) => _updateRequestStatus(request, status),
+                                          onDelete: () => _deleteRequest(request),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
             ),
           ],
         ),
@@ -296,10 +355,12 @@ class _RequestCard extends StatefulWidget {
   const _RequestCard({
     required this.request,
     required this.onStatusChanged,
+    required this.onDelete,
   });
 
-  final Map<String, dynamic> request;
-  final Function(String, Color, IconData) onStatusChanged;
+  final AbsenceJustificationRequest request;
+  final Function(String) onStatusChanged;
+  final VoidCallback onDelete;
 
   @override
   State<_RequestCard> createState() => _RequestCardState();
@@ -328,9 +389,33 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
     super.dispose();
   }
 
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'approved':
+        return AppColors.success;
+      case 'rejected':
+        return AppColors.error;
+      default:
+        return AppColors.warning;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'approved':
+        return 'مقبول';
+      case 'rejected':
+        return 'مرفوض';
+      default:
+        return 'قيد الانتظار';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isPending = widget.request['statusLabel'] == 'قيد الانتظار';
+    final isPending = widget.request.status == 'pending';
+    final statusColor = _statusColor(widget.request.status);
+    final statusLabel = _statusLabel(widget.request.status);
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -339,7 +424,7 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              widget.request['statusColor'].withValues(alpha: 0.1),
+              statusColor.withValues(alpha: 0.1),
               AppColors.surface,
             ],
             begin: Alignment.topLeft,
@@ -369,16 +454,14 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                   children: [
                     // Student Avatar
                     Hero(
-                      tag: 'student-${widget.request['studentName']}',
+                      tag: 'student-${widget.request.id}',
                       child: CircleAvatar(
                         radius: 24,
-                        backgroundColor: widget.request['statusColor'].withValues(alpha: 0.1),
+                        backgroundColor: statusColor.withValues(alpha: 0.1),
                         child: Text(
-                            (widget.request['studentName'] as String).isNotEmpty
-                              ? (widget.request['studentName'] as String).substring(0, 1)
-                              : '',
+                          widget.request.studentName.isNotEmpty ? widget.request.studentName.substring(0, 1) : '',
                           style: TextStyle(
-                            color: widget.request['statusColor'],
+                            color: statusColor,
                             fontWeight: FontWeight.w600,
                             fontSize: 18,
                           ),
@@ -392,13 +475,13 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.request['studentName'],
+                            widget.request.studentName,
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
-                            widget.request['className'],
+                            widget.request.className,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppColors.onSurface.withValues(alpha: 0.7),
                             ),
@@ -408,8 +491,8 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     StatusBadge(
-                      label: widget.request['statusLabel'],
-                      color: widget.request['statusColor'],
+                      label: statusLabel,
+                      color: statusColor,
                     ),
                   ],
                 ),
@@ -424,12 +507,12 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      widget.request['date'],
+                      widget.request.absenceDate,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
-                    if (widget.request['hasAttachment']) ...[
+                    if (widget.request.hasAttachment) ...[
                       const SizedBox(width: AppSpacing.sm),
                       Icon(
                         Icons.attach_file,
@@ -441,7 +524,7 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  widget.request['reason'],
+                  widget.request.reason,
                   style: Theme.of(context).textTheme.bodyLarge,
                   maxLines: _isExpanded ? null : 2,
                   overflow: _isExpanded ? null : TextOverflow.ellipsis,
@@ -464,7 +547,7 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'ولي الأمر: ${widget.request['parentName']}',
+                            'ولي الأمر: ${widget.request.parentName}',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
@@ -479,7 +562,7 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            widget.request['parentPhone'],
+                            widget.request.parentPhone,
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
@@ -490,11 +573,7 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () => widget.onStatusChanged(
-                                  'مرفوض',
-                                  AppColors.error,
-                                  Icons.cancel,
-                                ),
+                                onPressed: () => widget.onStatusChanged('rejected'),
                                 icon: const Icon(Icons.close),
                                 label: const Text('رفض'),
                                 style: OutlinedButton.styleFrom(
@@ -510,11 +589,7 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                             Expanded(
                               child: PrimaryButton(
                                 label: 'قبول',
-                                onPressed: () => widget.onStatusChanged(
-                                  'مقبول',
-                                  AppColors.success,
-                                  Icons.check_circle,
-                                ),
+                                onPressed: () => widget.onStatusChanged('approved'),
                                 icon: Icons.check,
                               ),
                             ),
@@ -522,17 +597,36 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                         ),
                       ] else ...[
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              _isExpanded ? Icons.expand_less : Icons.expand_more,
-                              color: AppColors.onSurface.withValues(alpha: 0.6),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: widget.onDelete,
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('حذف'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.error,
+                                  side: const BorderSide(color: AppColors.error),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'اضغط للتصغير',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.onSurface.withValues(alpha: 0.6),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _isExpanded = !_isExpanded;
+                                    if (_isExpanded) {
+                                      _expandController.forward();
+                                    } else {
+                                      _expandController.reverse();
+                                    }
+                                  });
+                                },
+                                icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+                                label: Text(_isExpanded ? 'تصغير' : 'التفاصيل'),
                               ),
                             ),
                           ],

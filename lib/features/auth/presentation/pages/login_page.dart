@@ -5,6 +5,7 @@ import '../../../../shared/theme/app_spacing.dart';
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/widgets/primary_button.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../../shared/widgets/app_feedback.dart';
 import '../../../../core/navigation/route_names.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
@@ -45,9 +46,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   void _onLogin() {
     if (_phoneController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('أدخل رقم الهاتف وكلمة المرور')),
-      );
+      showAppFeedback(context, message: 'أدخل رقم الهاتف وكلمة المرور', isError: true);
       return;
     }
 
@@ -67,9 +66,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         }
 
         if (state is AuthFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          showAppFeedback(context, message: state.message, isError: true);
         }
       },
       builder: (context, state) {
@@ -82,7 +79,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppColors.primary.withOpacity(0.1),
+                  AppColors.primaryContainer,
                   AppColors.surface,
                 ],
               ),

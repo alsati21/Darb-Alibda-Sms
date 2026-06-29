@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
@@ -29,19 +31,16 @@ class SectionHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
-                  Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+                  Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.onSurface.withValues(alpha: 0.7))),
                 ],
               ],
             ),
           ),
           if (actionLabel != null && onActionTap != null)
-            TextButton(
-              onPressed: onActionTap,
-              child: Text(actionLabel!),
-            ),
+            TextButton(onPressed: onActionTap, child: Text(actionLabel!)),
         ],
       ),
     );

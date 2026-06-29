@@ -37,12 +37,17 @@ class ApiClient {
     final uri = _build(path);
 
     try {
+      final requestHeaders = Map<String, String>.from(headers ?? const <String, String>{});
+      if (body != null && body is! String && !requestHeaders.containsKey('Content-Type')) {
+        requestHeaders['Content-Type'] = 'application/json';
+      }
+
       final encoded = body is String ? body : jsonEncode(body ?? {});
 
       debugPrint("REQUEST: $encoded");
 
       final res = await _inner
-          .post(uri, headers: headers, body: encoded)
+          .post(uri, headers: requestHeaders, body: encoded)
           .timeout(timeout);
 
       debugPrint("STATUS = ${res.statusCode}");

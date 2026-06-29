@@ -7,10 +7,13 @@ import 'features/auth/data/repositories/auth_repository.dart';
 import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/auth/presentation/cubit/auth_state.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/absence_requests/data/repositories/absence_requests_repository.dart';
+import 'features/attendance/data/repositories/attendance_repository.dart';
 import 'features/dashboard/data/repositories/dashboard_repository.dart';
 import 'features/dashboard/presentation/pages/dashboard_page.dart';
 import 'features/news/data/repositories/news_repository.dart';
 import 'features/news/presentation/cubit/news_cubit.dart';
+import 'features/schedule/data/repositories/schedule_repository.dart';
 import 'shared/theme/app_theme.dart';
 
 void main() {
@@ -26,7 +29,10 @@ class SchoolTeacherApp extends StatelessWidget {
       providers: [
         RepositoryProvider<AuthRepository>(create: (_) => AuthRepository()),
         RepositoryProvider<DashboardRepository>(create: (_) => DashboardRepository()),
+        RepositoryProvider<AttendanceRepository>(create: (_) => AttendanceRepository()),
         RepositoryProvider<NewsRepository>(create: (_) => NewsRepository()),
+        RepositoryProvider<ScheduleRepository>(create: (_) => ScheduleRepository()),
+        RepositoryProvider<AbsenceRequestsRepository>(create: (_) => AbsenceRequestsRepository()),
       ],
       child: MultiBlocProvider(
         providers: [

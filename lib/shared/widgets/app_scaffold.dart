@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/navigation/route_names.dart';
+import '../theme/app_colors.dart';
 
 class AppScaffold extends StatelessWidget {
   const AppScaffold({
@@ -22,7 +23,7 @@ class AppScaffold extends StatelessWidget {
         Navigator.pushReplacementNamed(context, RouteNames.dashboard);
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, RouteNames.classes);
+        Navigator.pushReplacementNamed(context, RouteNames.attendance);
         break;
       case 2:
         Navigator.pushReplacementNamed(context, RouteNames.schedule);
@@ -37,7 +38,8 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 1,
+        elevation: 0,
+        titleSpacing: 16,
         title: Text(title),
         actions: actions,
       ),
@@ -46,28 +48,21 @@ class AppScaffold extends StatelessWidget {
         selectedIndex: currentIndex,
         onDestinationSelected: (index) => _onTabSelected(context, index),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'الرئيسية',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.class_outlined),
-            selectedIcon: Icon(Icons.class_),
-            label: 'الصفوف',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.schedule_outlined),
-            selectedIcon: Icon(Icons.schedule),
-            label: 'الجدول',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.campaign_outlined),
-            selectedIcon: Icon(Icons.campaign),
-            label: 'الأخبار',
-          ),
+          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'الرئيسية'),
+          NavigationDestination(icon: Icon(Icons.fact_check_outlined), selectedIcon: Icon(Icons.fact_check), label: 'الحضور'),
+          NavigationDestination(icon: Icon(Icons.schedule_outlined), selectedIcon: Icon(Icons.schedule), label: 'الجدول'),
+          NavigationDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: 'الأخبار'),
         ],
       ),
+      floatingActionButton: currentIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: () => Navigator.pushNamed(context, RouteNames.absenceRequests),
+              icon: const Icon(Icons.assignment_late_outlined),
+              label: const Text('طلبات الغياب'),
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+            )
+          : null,
     );
   }
 }
