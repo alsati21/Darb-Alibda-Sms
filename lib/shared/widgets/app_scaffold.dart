@@ -31,6 +31,9 @@ class AppScaffold extends StatelessWidget {
       case 3:
         Navigator.pushReplacementNamed(context, RouteNames.news);
         break;
+      case 4:
+        Navigator.pushReplacementNamed(context, RouteNames.classes);
+        break;
     }
   }
 
@@ -52,6 +55,7 @@ class AppScaffold extends StatelessWidget {
           NavigationDestination(icon: Icon(Icons.fact_check_outlined), selectedIcon: Icon(Icons.fact_check), label: 'الحضور'),
           NavigationDestination(icon: Icon(Icons.schedule_outlined), selectedIcon: Icon(Icons.schedule), label: 'الجدول'),
           NavigationDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: 'الأخبار'),
+          NavigationDestination(icon: Icon(Icons.class_outlined), selectedIcon: Icon(Icons.class_outlined), label: 'الصفوف'),
         ],
       ),
       floatingActionButton: currentIndex == 0

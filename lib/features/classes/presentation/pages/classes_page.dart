@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
 
 import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/theme/app_spacing.dart';
@@ -6,6 +8,9 @@ import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/section_header.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../../../../shared/widgets/empty_state_card.dart';
+import '../../data/models/class_item.dart';
+import '../cubit/classes_cubit.dart';
+import '../cubit/classes_state.dart';
 
 class ClassesPage extends StatefulWidget {
   const ClassesPage({super.key});
@@ -15,69 +20,21 @@ class ClassesPage extends StatefulWidget {
 }
 
 class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin {
-  final TextEditingController _searchController = TextEditingController();
-  String _selectedFilter = 'الكل';
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-
-  final List<Map<String, dynamic>> _classes = [
-    {
-      'title': 'الصف الثالث - الرياضيات',
-      'subtitle': '24 طالبًا • شعبة A',
-      'status': 'نشط',
-      'statusColor': AppColors.primary,
-      'icon': Icons.calculate,
-      'color': AppColors.primary,
-      'students': 24,
-      'grade': 'الثالث',
-      'subject': 'الرياضيات',
-    },
-    {
-      'title': 'الصف الثاني - العلوم',
-      'subtitle': '20 طالبًا • شعبة B',
-      'status': 'مكتمل',
-      'statusColor': AppColors.success,
-      'icon': Icons.science,
-      'color': AppColors.success,
-      'students': 20,
-      'grade': 'الثاني',
-      'subject': 'العلوم',
-    },
-    {
-      'title': 'الصف الرابع - اللغة العربية',
-      'subtitle': '18 طالبًا • شعبة A',
-      'status': 'مفتوح',
-      'statusColor': AppColors.info,
-      'icon': Icons.language,
-      'color': AppColors.info,
-      'students': 18,
-      'grade': 'الرابع',
-      'subject': 'اللغة العربية',
-    },
-    {
-      'title': 'الصف الأول - الإنجليزية',
-      'subtitle': '22 طالبًا • شعبة C',
-      'status': 'نشط',
-      'statusColor': AppColors.primary,
-      'icon': Icons.translate,
-      'color': AppColors.primary,
-      'students': 22,
-      'grade': 'الأول',
-      'subject': 'الإنجليزية',
-    },
-  ];
+  late final TextEditingController _searchController;
+  late final AnimationController _animationController;
+  late final Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
+    _searchController = TextEditingController();
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
     _animationController.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final token = context.read<AuthCubit>().sessionToken;
+      context.read<ClassesCubit>().loadClasses(token: token);
+    });
   }
 
   @override
@@ -87,25 +44,11 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
     super.dispose();
   }
 
-  List<Map<String, dynamic>> get _filteredClasses {
-    return _classes.where((classItem) {
-      final matchesSearch = classItem['title'].toString().toLowerCase().contains(
-        _searchController.text.toLowerCase(),
-      ) || classItem['subject'].toString().toLowerCase().contains(
-        _searchController.text.toLowerCase(),
-      );
-
-      final matchesFilter = _selectedFilter == 'الكل' || classItem['status'] == _selectedFilter;
-
-      return matchesSearch && matchesFilter;
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'الصفوف والشعب',
-      currentIndex: 1,
+      currentIndex: 0,
+      title: 'الصفوف',
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: Column(
@@ -137,7 +80,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: _searchController,
-                    onChanged: (value) => setState(() {}),
+                    onChanged: (value) => context.read<ClassesCubit>().updateSearchQuery(value),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
                       hintText: 'بحث باسم المادة أو الشعبة',
@@ -157,38 +100,78 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  // Filter Chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterChip('الكل'),
-                        const SizedBox(width: AppSpacing.sm),
-                        _buildFilterChip('نشط'),
-                        const SizedBox(width: AppSpacing.sm),
-                        _buildFilterChip('مكتمل'),
-                        const SizedBox(width: AppSpacing.sm),
-                        _buildFilterChip('مفتوح'),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
-            // Classes List
+
+            // Filter Chips
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('الكل'),
+                    const SizedBox(width: AppSpacing.sm),
+                    _buildFilterChip('نشط'),
+                    const SizedBox(width: AppSpacing.sm),
+                    _buildFilterChip('مكتمل'),
+                    const SizedBox(width: AppSpacing.sm),
+                    _buildFilterChip('مفتوح'),
+                  ],
+                ),
+              ),
+            ),
+
+            // Classes List (driven by ClassesCubit)
             Expanded(
-              child: _filteredClasses.isEmpty
-                ? const EmptyStateCard(
-                    icon: Icons.class_,
-                    title: 'لا توجد صفوف',
-                    subtitle: 'لم يتم العثور على صفوف تطابق معايير البحث',
-                  )
-                : ListView.builder(
+              child: BlocBuilder<ClassesCubit, ClassesState>(
+                builder: (context, state) {
+                  if (state.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (state.errorMessage != null) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline, size: 42, color: AppColors.warning),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text('تعذر تحميل الصفوف', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(state.errorMessage!, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+                            const SizedBox(height: AppSpacing.md),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                final token = context.read<AuthCubit>().sessionToken;
+                                context.read<ClassesCubit>().loadClasses(token: token);
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('إعادة المحاولة'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final filtered = state.filteredClasses;
+                  if (filtered.isEmpty) {
+                    return const EmptyStateCard(
+                      icon: Icons.class_,
+                      title: 'لا توجد صفوف',
+                      subtitle: 'لم يتم العثور على صفوف تطابق معايير البحث',
+                    );
+                  }
+
+                  return ListView.builder(
                     padding: const EdgeInsets.all(AppSpacing.md),
-                    itemCount: _filteredClasses.length,
+                    itemCount: filtered.length,
                     itemBuilder: (context, index) {
-                      final classItem = _filteredClasses[index];
+                      final classItem = filtered[index];
                       return AnimatedBuilder(
                         animation: _animationController,
                         builder: (context, child) {
@@ -197,7 +180,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                               CurvedAnimation(
                                 parent: _animationController,
                                 curve: Interval(
-                                  index * 0.1,
+                                  index * 0.05,
                                   1.0,
                                   curve: Curves.easeInOut,
                                 ),
@@ -205,25 +188,27 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                             ),
                             child: SlideTransition(
                               position: Tween<Offset>(
-                                begin: const Offset(0, 0.1),
+                                begin: const Offset(0, 0.04),
                                 end: Offset.zero,
                               ).animate(
                                 CurvedAnimation(
                                   parent: _animationController,
                                   curve: Interval(
-                                    index * 0.1,
+                                    index * 0.05,
                                     1.0,
                                     curve: Curves.easeOut,
                                   ),
                                 ),
                               ),
-                              child: _buildClassCard(classItem),
+                              child: _buildClassCard(classItem, context)
                             ),
                           );
                         },
                       );
                     },
-                  ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -232,14 +217,15 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
   }
 
   Widget _buildFilterChip(String label) {
-    final isSelected = _selectedFilter == label;
+    final selectedFilter = context.watch<ClassesCubit>().state.selectedFilter;
+    final isSelected = selectedFilter == label;
     return FilterChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
-        setState(() {
-          _selectedFilter = selected ? label : 'الكل';
-        });
+        context.read<ClassesCubit>().selectFilter(selected ? label : 'الكل');
+        _animationController.reset();
+        _animationController.forward();
       },
       backgroundColor: AppColors.surfaceVariant,
       selectedColor: AppColors.primary.withOpacity(0.1),
@@ -251,7 +237,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildClassCard(Map<String, dynamic> classItem) {
+  Widget _buildClassCard(ClassItem classItem, BuildContext context) {
     return Card(
       elevation: 4,
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -260,7 +246,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              classItem['color'].withOpacity(0.1),
+              classItem.color.withOpacity(0.1),
               AppColors.surface,
             ],
             begin: Alignment.topLeft,
@@ -271,11 +257,10 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            // Navigate to class details
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('فتح تفاصيل ${classItem['title']}'),
-                backgroundColor: classItem['color'],
+                content: Text('فتح تفاصيل ${classItem.title}'),
+                backgroundColor: classItem.color,
               ),
             );
           },
@@ -283,35 +268,33 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
               children: [
-                // Class Icon
                 Container(
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: classItem['color'].withOpacity(0.1),
+                    color: classItem.color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
-                    classItem['icon'],
-                    color: classItem['color'],
+                    classItem.icon,
+                    color: classItem.color,
                     size: 32,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
-                // Class Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        classItem['title'],
+                        classItem.title,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        classItem['subtitle'],
+                        classItem.subtitle,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppColors.onSurface.withOpacity(0.7),
                         ),
@@ -326,7 +309,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${classItem['students']} طالب',
+                            '${classItem.students} طالب',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.onSurface.withOpacity(0.6),
                             ),
@@ -336,10 +319,9 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                     ],
                   ),
                 ),
-                // Status Badge
                 StatusBadge(
-                  label: classItem['status'],
-                  color: classItem['statusColor'],
+                  label: classItem.status,
+                  color: classItem.statusColor,
                 ),
               ],
             ),

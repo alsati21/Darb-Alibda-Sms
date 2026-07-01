@@ -45,6 +45,34 @@ class AbsenceJustificationRequest {
     );
   }
 
+  AbsenceJustificationRequest copyWith({
+    int? id,
+    String? studentName,
+    String? className,
+    String? absenceDate,
+    String? reason,
+    String? status,
+    String? reviewNote,
+    String? parentName,
+    String? parentPhone,
+    bool? hasAttachment,
+    String? createdAt,
+  }) {
+    return AbsenceJustificationRequest(
+      id: id ?? this.id,
+      studentName: studentName ?? this.studentName,
+      className: className ?? this.className,
+      absenceDate: absenceDate ?? this.absenceDate,
+      reason: reason ?? this.reason,
+      status: status ?? this.status,
+      reviewNote: reviewNote ?? this.reviewNote,
+      parentName: parentName ?? this.parentName,
+      parentPhone: parentPhone ?? this.parentPhone,
+      hasAttachment: hasAttachment ?? this.hasAttachment,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   static int _toInt(dynamic value) {
     if (value is int) return value;
     return int.tryParse('$value') ?? 0;

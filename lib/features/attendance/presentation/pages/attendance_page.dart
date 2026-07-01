@@ -20,12 +20,14 @@ class AttendancePage extends StatefulWidget {
   State<AttendancePage> createState() => _AttendancePageState();
 }
 
-class _AttendancePageState extends State<AttendancePage> with TickerProviderStateMixin {
+class _AttendancePageState extends State<AttendancePage>
+    with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
   final List<TeacherAttendanceSection> _sections = <TeacherAttendanceSection>[];
-  final List<TeacherAttendanceSection> _allSections = <TeacherAttendanceSection>[];
+  final List<TeacherAttendanceSection> _allSections =
+      <TeacherAttendanceSection>[];
   bool _isLoading = true;
   String? _errorMessage;
   bool _isSaving = false;
@@ -38,17 +40,26 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     if (_selectedSectionId == 0) return const <TeacherAttendanceStudent>[];
     final section = _sections.firstWhere(
       (item) => item.sectionId == _selectedSectionId,
-      orElse: () => _allSections.firstOrNull ?? TeacherAttendanceSection(
-        sectionId: 0,
-        sectionName: '',
-        sectionFullName: '',
-        classId: 0,
-        className: '',
-        totalStudents: 0,
-        attendance: TeacherAttendanceSummary(date: '', present: 0, absent: 0, late: 0, excused: 0, percentage: 0),
-        schedules: const <TeacherAttendanceSchedule>[],
-        students: const <TeacherAttendanceStudent>[],
-      ),
+      orElse: () =>
+          _allSections.firstOrNull ??
+          TeacherAttendanceSection(
+            sectionId: 0,
+            sectionName: '',
+            sectionFullName: '',
+            classId: 0,
+            className: '',
+            totalStudents: 0,
+            attendance: TeacherAttendanceSummary(
+              date: '',
+              present: 0,
+              absent: 0,
+              late: 0,
+              excused: 0,
+              percentage: 0,
+            ),
+            schedules: const <TeacherAttendanceSchedule>[],
+            students: const <TeacherAttendanceStudent>[],
+          ),
     );
     return section.students;
   }
@@ -90,7 +101,10 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     });
 
     try {
-      final repository = RepositoryProvider.of<AttendanceRepository>(context, listen: false);
+      final repository = RepositoryProvider.of<AttendanceRepository>(
+        context,
+        listen: false,
+      );
       final sections = await repository.fetchSectionsWithStudents(token);
       if (!mounted) return;
       setState(() {
@@ -99,8 +113,13 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
         _sections.clear();
         _sections.addAll(sections);
         _selectedSectionId = sections.isNotEmpty ? sections.first.sectionId : 0;
-        _selectedScheduleId = sections.isNotEmpty && sections.first.schedules.isNotEmpty ? sections.first.schedules.first.scheduleId : 0;
-        _selectedDate = sections.isNotEmpty ? sections.first.attendance.date : '';
+        _selectedScheduleId =
+            sections.isNotEmpty && sections.first.schedules.isNotEmpty
+            ? sections.first.schedules.first.scheduleId
+            : 0;
+        _selectedDate = sections.isNotEmpty
+            ? sections.first.attendance.date
+            : '';
         _isLoading = false;
       });
     } catch (error) {
@@ -116,9 +135,13 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     setState(() {
       final section = _sections.firstWhere(
         (item) => item.sectionId == _selectedSectionId,
-        orElse: () => _allSections.firstWhere((item) => item.sectionId == _selectedSectionId),
+        orElse: () => _allSections.firstWhere(
+          (item) => item.sectionId == _selectedSectionId,
+        ),
       );
-      final student = section.students.firstWhere((item) => item.studentId == studentId);
+      final student = section.students.firstWhere(
+        (item) => item.studentId == studentId,
+      );
       student.attendanceStatus = newStatus;
     });
   }
@@ -127,7 +150,11 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     final token = context.read<AuthCubit>().sessionToken;
     if (token == null || token.isEmpty) {
       if (!mounted) return;
-      showAppFeedback(context, message: 'لم يتم العثور على جلسة نشطة', isError: true);
+      showAppFeedback(
+        context,
+        message: 'لم يتم العثور على جلسة نشطة',
+        isError: true,
+      );
       return;
     }
 
@@ -135,7 +162,10 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     setState(() => _isSaving = true);
 
     try {
-      final repository = RepositoryProvider.of<AttendanceRepository>(context, listen: false);
+      final repository = RepositoryProvider.of<AttendanceRepository>(
+        context,
+        listen: false,
+      );
       final payload = <Map<String, dynamic>>[];
       final seenStudentIds = <int>{};
       for (final student in _filteredStudents) {
@@ -152,7 +182,9 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
       final result = await repository.batchUpdateAttendance(
         token: token,
         sectionId: _selectedSectionId,
-        date: _selectedDate.isEmpty ? DateTime.now().toIso8601String().split('T').first : _selectedDate,
+        date: _selectedDate.isEmpty
+            ? DateTime.now().toIso8601String().split('T').first
+            : _selectedDate,
         scheduleId: _selectedScheduleId,
         students: payload,
       );
@@ -160,7 +192,8 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
       if (!mounted) return;
       showAppFeedback(
         context,
-        message: 'تم حفظ الحضور بنجاح • ${result.present} حاضر • ${result.late} متأخر',
+        message:
+            'تم حفظ الحضور بنجاح • ${result.present} حاضر • ${result.late} متأخر',
         isError: false,
       );
     } catch (error) {
@@ -177,9 +210,15 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
     }
   }
 
-  int get _presentCount => _filteredStudents.where((s) => s.attendanceStatus == 'present').length;
-  int get _lateCount => _filteredStudents.where((s) => s.attendanceStatus == 'late').length;
-  int get _absentCount => _filteredStudents.where((s) => s.attendanceStatus == 'absent').length;
+  int get _presentCount =>
+      _filteredStudents.where((s) => s.attendanceStatus == 'present').length;
+
+  int get _lateCount =>
+      _filteredStudents.where((s) => s.attendanceStatus == 'late').length;
+
+  int get _absentCount =>
+      _filteredStudents.where((s) => s.attendanceStatus == 'absent').length;
+
   double get _attendancePercentage => _filteredStudents.isEmpty
       ? 0
       : (_presentCount + _lateCount) / _filteredStudents.length * 100;
@@ -204,7 +243,11 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   children: [
-                    const Icon(Icons.error_outline, size: 36, color: AppColors.warning),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 36,
+                      color: AppColors.warning,
+                    ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(_errorMessage!, textAlign: TextAlign.center),
                     const SizedBox(height: AppSpacing.sm),
@@ -218,57 +261,72 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
               )
             else
               Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatCard('الحاضرون', _presentCount.toString(), AppColors.success),
-                      _buildStatCard('المتأخرون', _lateCount.toString(), AppColors.warning),
-                      _buildStatCard('الغائبون', _absentCount.toString(), AppColors.error),
-                    ],
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.secondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: AppColors.onPrimary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        Text(
-                          'نسبة الحضور: ${_attendancePercentage.toStringAsFixed(1)}%',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.onPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        _buildStatCard(
+                          'الحاضرون',
+                          _presentCount.toString(),
+                          AppColors.success,
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Icon(
-                          _attendancePercentage >= 80 ? Icons.check_circle : Icons.warning,
-                          color: AppColors.onPrimary,
-                          size: 20,
+                        _buildStatCard(
+                          'المتأخرون',
+                          _lateCount.toString(),
+                          AppColors.warning,
+                        ),
+                        _buildStatCard(
+                          'الغائبون',
+                          _absentCount.toString(),
+                          AppColors.error,
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: AppColors.onPrimary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'نسبة الحضور: ${_attendancePercentage.toStringAsFixed(1)}%',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: AppColors.onPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Icon(
+                            _attendancePercentage >= 80
+                                ? Icons.check_circle
+                                : Icons.warning,
+                            color: AppColors.onPrimary,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
             if (!_isLoading && _errorMessage == null)
               Expanded(
                 child: _filteredStudents.isEmpty
@@ -284,30 +342,32 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
                             animation: _animationController,
                             builder: (context, child) {
                               return FadeTransition(
-                                opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                                  CurvedAnimation(
-                                    parent: _animationController,
-                                    curve: Interval(
-                                      index * 0.05,
-                                      1.0,
-                                      curve: Curves.easeInOut,
-                                    ),
-                                  ),
-                                ),
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0, 0.1),
-                                    end: Offset.zero,
-                                  ).animate(
-                                    CurvedAnimation(
-                                      parent: _animationController,
-                                      curve: Interval(
-                                        index * 0.05,
-                                        1.0,
-                                        curve: Curves.easeOut,
+                                opacity: Tween<double>(begin: 0.0, end: 1.0)
+                                    .animate(
+                                      CurvedAnimation(
+                                        parent: _animationController,
+                                        curve: Interval(
+                                          index * 0.05,
+                                          1.0,
+                                          curve: Curves.easeInOut,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                child: SlideTransition(
+                                  position:
+                                      Tween<Offset>(
+                                        begin: const Offset(0, 0.1),
+                                        end: Offset.zero,
+                                      ).animate(
+                                        CurvedAnimation(
+                                          parent: _animationController,
+                                          curve: Interval(
+                                            index * 0.05,
+                                            1.0,
+                                            curve: Curves.easeOut,
+                                          ),
+                                        ),
+                                      ),
                                   child: _AttendanceCard(
                                     student: student,
                                     onStatusChanged: _updateAttendance,
@@ -321,21 +381,23 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
               ),
             if (!_isLoading && _errorMessage == null)
               Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: Border(
-                  top: BorderSide(color: AppColors.border.withOpacity(0.3)),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  border: Border(
+                    top: BorderSide(color: AppColors.border.withOpacity(0.3)),
+                  ),
+                ),
+                child: PrimaryButton(
+                  label: _isSaving ? 'جاري الحفظ...' : 'حفظ الحضور',
+                  onPressed: _isSaving
+                      ? () {}
+                      : () {
+                          unawaited(_saveAttendance());
+                        },
+                  icon: Icons.save,
                 ),
               ),
-              child: PrimaryButton(
-                label: _isSaving ? 'جاري الحفظ...' : 'حفظ الحضور',
-                onPressed: _isSaving ? () {} : () {
-                  unawaited(_saveAttendance());
-                },
-                icon: Icons.save,
-              ),
-            ),
           ],
         ),
       ),
@@ -369,32 +431,48 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
         children: [
           Text(
             'اختر الصف والشعبة',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
+
             children: [
               Expanded(
                 child: DropdownButtonFormField<int>(
+                  isExpanded: true,
                   value: _selectedSectionId == 0 ? null : _selectedSectionId,
                   decoration: InputDecoration(
                     labelText: 'الشعبة',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
                   ),
                   items: _sections
-                      .map((section) => DropdownMenuItem<int>(
-                            value: section.sectionId,
-                            child: Text(section.sectionFullName.isNotEmpty ? section.sectionFullName : section.sectionName),
-                          ))
+                      .map(
+                        (section) => DropdownMenuItem<int>(
+                          value: section.sectionId,
+                          child: Text(
+                            section.sectionFullName.isNotEmpty
+                                ? section.sectionFullName
+                                : section.sectionName,
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (value) {
                     if (value == null) return;
-                    final selected = _sections.firstWhere((item) => item.sectionId == value);
+                    final selected = _sections.firstWhere(
+                      (item) => item.sectionId == value,
+                    );
                     setState(() {
                       _selectedSectionId = value;
-                      _selectedScheduleId = selected.schedules.isNotEmpty ? selected.schedules.first.scheduleId : 0;
+                      _selectedScheduleId = selected.schedules.isNotEmpty
+                          ? selected.schedules.first.scheduleId
+                          : 0;
                       _selectedDate = selected.attendance.date;
                     });
                   },
@@ -403,31 +481,47 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: DropdownButtonFormField<int>(
+                  isExpanded: true,
                   value: _selectedScheduleId == 0 ? null : _selectedScheduleId,
                   decoration: InputDecoration(
                     labelText: 'الحصة',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
                   ),
-                  items: _sections.firstWhere(
-                    (item) => item.sectionId == _selectedSectionId,
-                    orElse: () => _sections.isNotEmpty ? _sections.first : TeacherAttendanceSection(
-                      sectionId: 0,
-                      sectionName: '',
-                      sectionFullName: '',
-                      classId: 0,
-                      className: '',
-                      totalStudents: 0,
-                      attendance: TeacherAttendanceSummary(date: '', present: 0, absent: 0, late: 0, excused: 0, percentage: 0),
-                      schedules: const <TeacherAttendanceSchedule>[],
-                      students: const <TeacherAttendanceStudent>[],
-                    ),
-                  ).schedules
-                      .map((schedule) => DropdownMenuItem<int>(
-                            value: schedule.scheduleId,
-                            child: Text(schedule.subjectName),
-                          ))
+                  items: _sections
+                      .firstWhere(
+                        (item) => item.sectionId == _selectedSectionId,
+                        orElse: () => _sections.isNotEmpty
+                            ? _sections.first
+                            : TeacherAttendanceSection(
+                                sectionId: 0,
+                                sectionName: '',
+                                sectionFullName: '',
+                                classId: 0,
+                                className: '',
+                                totalStudents: 0,
+                                attendance: TeacherAttendanceSummary(
+                                  date: '',
+                                  present: 0,
+                                  absent: 0,
+                                  late: 0,
+                                  excused: 0,
+                                  percentage: 0,
+                                ),
+                                schedules: const <TeacherAttendanceSchedule>[],
+                                students: const <TeacherAttendanceStudent>[],
+                              ),
+                      )
+                      .schedules
+                      .map(
+                        (schedule) => DropdownMenuItem<int>(
+                          value: schedule.scheduleId,
+                          child: Text(schedule.subjectName),
+                        ),
+                      )
                       .toList(),
                   onChanged: (value) {
                     if (value == null) return;
@@ -471,10 +565,7 @@ class _AttendancePageState extends State<AttendancePage> with TickerProviderStat
 }
 
 class _AttendanceCard extends StatelessWidget {
-  const _AttendanceCard({
-    required this.student,
-    required this.onStatusChanged,
-  });
+  const _AttendanceCard({required this.student, required this.onStatusChanged});
 
   final TeacherAttendanceStudent student;
   final Function(int, String) onStatusChanged;
@@ -523,7 +614,9 @@ class _AttendanceCard extends StatelessWidget {
                 radius: 24,
                 backgroundColor: color.withOpacity(0.1),
                 child: Text(
-                  student.fullName.isNotEmpty ? student.fullName.substring(0, 1) : '',
+                  student.fullName.isNotEmpty
+                      ? student.fullName.substring(0, 1)
+                      : '',
                   style: TextStyle(
                     color: color,
                     fontWeight: FontWeight.w600,

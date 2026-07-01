@@ -46,6 +46,30 @@ class TeacherAttendanceSection {
     );
   }
 
+  TeacherAttendanceSection copyWith({
+    int? sectionId,
+    String? sectionName,
+    String? sectionFullName,
+    int? classId,
+    String? className,
+    int? totalStudents,
+    TeacherAttendanceSummary? attendance,
+    List<TeacherAttendanceSchedule>? schedules,
+    List<TeacherAttendanceStudent>? students,
+  }) {
+    return TeacherAttendanceSection(
+      sectionId: sectionId ?? this.sectionId,
+      sectionName: sectionName ?? this.sectionName,
+      sectionFullName: sectionFullName ?? this.sectionFullName,
+      classId: classId ?? this.classId,
+      className: className ?? this.className,
+      totalStudents: totalStudents ?? this.totalStudents,
+      attendance: attendance ?? this.attendance,
+      schedules: schedules ?? this.schedules,
+      students: students ?? this.students,
+    );
+  }
+
   static List<TeacherAttendanceStudent> _normalizeStudents(dynamic studentsJson) {
     if (studentsJson is! List) {
       return <TeacherAttendanceStudent>[];
@@ -184,6 +208,36 @@ class TeacherAttendanceStudent {
   final String birthDate;
   final TeacherAttendanceParent parent;
   String attendanceStatus;
+
+  TeacherAttendanceStudent copyWith({
+    int? studentId,
+    int? enrollmentId,
+    String? registryNumber,
+    String? fullName,
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? phone,
+    String? gender,
+    String? birthDate,
+    TeacherAttendanceParent? parent,
+    String? attendanceStatus,
+  }) {
+    return TeacherAttendanceStudent(
+      studentId: studentId ?? this.studentId,
+      enrollmentId: enrollmentId ?? this.enrollmentId,
+      registryNumber: registryNumber ?? this.registryNumber,
+      fullName: fullName ?? this.fullName,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      gender: gender ?? this.gender,
+      birthDate: birthDate ?? this.birthDate,
+      parent: parent ?? this.parent,
+      attendanceStatus: attendanceStatus ?? this.attendanceStatus,
+    );
+  }
 
   factory TeacherAttendanceStudent.fromJson(Map<String, dynamic> json) {
     return TeacherAttendanceStudent(

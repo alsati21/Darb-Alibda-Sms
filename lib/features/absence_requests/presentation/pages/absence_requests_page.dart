@@ -11,6 +11,9 @@ import '../../../../shared/widgets/app_feedback.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../data/models/absence_justification_request.dart';
 import '../../data/repositories/absence_requests_repository.dart';
+import '../cubit/absence_requests_cubit.dart';
+import '../cubit/absence_requests_state.dart';
+import '../../../../core/navigation/route_names.dart';
 
 class AbsenceRequestsPage extends StatefulWidget {
   const AbsenceRequestsPage({super.key});
@@ -20,13 +23,9 @@ class AbsenceRequestsPage extends StatefulWidget {
 }
 
 class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerProviderStateMixin {
-  String _selectedFilter = 'الكل';
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-
-  List<AbsenceJustificationRequest> _requests = <AbsenceJustificationRequest>[];
-  bool _isLoading = true;
-  String? _errorMessage;
+  String? _previousErrorMessage;
+  late final AnimationController _animationController;
+  late final Animation<double> _fadeAnimation;
 
   @override
   void initState() {
@@ -35,11 +34,12 @@ class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerPr
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
+    _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
     _animationController.forward();
-    _loadRequests();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final token = context.read<AuthCubit>().sessionToken;
+      context.read<AbsenceRequestsCubit>().loadRequests(token);
+    });
   }
 
   @override
@@ -48,257 +48,9 @@ class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerPr
     super.dispose();
   }
 
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'approved':
-        return 'مقبول';
-      case 'rejected':
-        return 'مرفوض';
-      default:
-        return 'قيد الانتظار';
-    }
-  }
-
-  List<AbsenceJustificationRequest> get _filteredRequests {
-    if (_selectedFilter == 'الكل') return _requests;
-    return _requests.where((request) => _statusLabel(request.status) == _selectedFilter).toList();
-  }
-
-  Future<void> _loadRequests() async {
+  void _refreshRequests() {
     final token = context.read<AuthCubit>().sessionToken;
-    if (token == null || token.isEmpty) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'لم يتم العثور على جلسة نشطة';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final repository = RepositoryProvider.of<AbsenceRequestsRepository>(context, listen: false);
-      final requests = await repository.fetchRequests(token);
-      if (!mounted) return;
-      setState(() {
-        _requests = requests;
-        _isLoading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _errorMessage = error.toString().replaceFirst('Exception: ', '');
-      });
-    }
-  }
-
-  Future<void> _updateRequestStatus(AbsenceJustificationRequest request, String newStatus) async {
-    final token = context.read<AuthCubit>().sessionToken;
-    if (token == null || token.isEmpty) {
-      showAppFeedback(context, message: 'لم يتم العثور على جلسة نشطة', isError: true);
-      return;
-    }
-
-    try {
-      final repository = RepositoryProvider.of<AbsenceRequestsRepository>(context, listen: false);
-      await repository.updateRequest(token: token, requestId: request.id, status: newStatus);
-      if (!mounted) return;
-      setState(() {
-        final index = _requests.indexWhere((item) => item.id == request.id);
-        if (index >= 0) {
-          _requests[index] = AbsenceJustificationRequest(
-            id: request.id,
-            studentName: request.studentName,
-            className: request.className,
-            absenceDate: request.absenceDate,
-            reason: request.reason,
-            status: newStatus,
-            reviewNote: request.reviewNote,
-            parentName: request.parentName,
-            parentPhone: request.parentPhone,
-            hasAttachment: request.hasAttachment,
-            createdAt: request.createdAt,
-          );
-        }
-      });
-      showAppFeedback(
-        context,
-        message: newStatus == 'approved' ? 'تم قبول طلب التبرير' : 'تم رفض طلب التبرير',
-        isError: false,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      showAppFeedback(context, message: error.toString().replaceFirst('Exception: ', ''), isError: true);
-    }
-  }
-
-  Future<void> _deleteRequest(AbsenceJustificationRequest request) async {
-    final token = context.read<AuthCubit>().sessionToken;
-    if (token == null || token.isEmpty) {
-      showAppFeedback(context, message: 'لم يتم العثور على جلسة نشطة', isError: true);
-      return;
-    }
-
-    try {
-      final repository = RepositoryProvider.of<AbsenceRequestsRepository>(context, listen: false);
-      await repository.deleteRequest(token: token, requestId: request.id);
-      if (!mounted) return;
-      setState(() {
-        _requests.removeWhere((item) => item.id == request.id);
-      });
-      showAppFeedback(context, message: 'تم حذف طلب التبرير', isError: false);
-    } catch (error) {
-      if (!mounted) return;
-      showAppFeedback(context, message: error.toString().replaceFirst('Exception: ', ''), isError: true);
-    }
-  }
-
-  int get _pendingCount => _requests.where((request) => request.status == 'pending').length;
-  int get _approvedCount => _requests.where((request) => request.status == 'approved').length;
-  int get _rejectedCount => _requests.where((request) => request.status == 'rejected').length;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppScaffold(
-      title: 'طلبات تبرير الغياب',
-      currentIndex: 0,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Column(
-          children: [
-            // Header with Stats
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                children: [
-                  const SectionHeader(
-                    title: 'طلبات تبرير الغياب',
-                    subtitle: 'راجع الطلبات واتخذ القرار بسرعة',
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  // Stats Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatCard('معلقة', _pendingCount.toString(), AppColors.warning),
-                      _buildStatCard('مقبولة', _approvedCount.toString(), AppColors.success),
-                      _buildStatCard('مرفوضة', _rejectedCount.toString(), AppColors.error),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            // Filter Chips
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip('الكل'),
-                    const SizedBox(width: AppSpacing.sm),
-                    _buildFilterChip('قيد الانتظار'),
-                    const SizedBox(width: AppSpacing.sm),
-                    _buildFilterChip('مقبول'),
-                    const SizedBox(width: AppSpacing.sm),
-                    _buildFilterChip('مرفوض'),
-                  ],
-                ),
-              ),
-            ),
-            // Requests List
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _errorMessage != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.lg),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.error_outline, size: 36, color: AppColors.warning),
-                                const SizedBox(height: AppSpacing.sm),
-                                Text(_errorMessage!, textAlign: TextAlign.center),
-                                const SizedBox(height: AppSpacing.sm),
-                                ElevatedButton.icon(
-                                  onPressed: _loadRequests,
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('إعادة المحاولة'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : _filteredRequests.isEmpty
-                          ? const Center(
-                              child: Text('لا توجد طلبات في هذه الفئة'),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              itemCount: _filteredRequests.length,
-                              itemBuilder: (context, index) {
-                                final request = _filteredRequests[index];
-                                return AnimatedBuilder(
-                                  animation: _animationController,
-                                  builder: (context, child) {
-                                    return FadeTransition(
-                                      opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                                        CurvedAnimation(
-                                          parent: _animationController,
-                                          curve: Interval(
-                                            index * 0.1,
-                                            1.0,
-                                            curve: Curves.easeInOut,
-                                          ),
-                                        ),
-                                      ),
-                                      child: SlideTransition(
-                                        position: Tween<Offset>(
-                                          begin: const Offset(0, 0.1),
-                                          end: Offset.zero,
-                                        ).animate(
-                                          CurvedAnimation(
-                                            parent: _animationController,
-                                            curve: Interval(
-                                              index * 0.1,
-                                              1.0,
-                                              curve: Curves.easeOut,
-                                            ),
-                                          ),
-                                        ),
-                                        child: _RequestCard(
-                                          request: request,
-                                          onStatusChanged: (status) => _updateRequestStatus(request, status),
-                                          onDelete: () => _deleteRequest(request),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-            ),
-          ],
-        ),
-      ),
-    );
+    context.read<AbsenceRequestsCubit>().loadRequests(token);
   }
 
   Widget _buildStatCard(String title, String value, Color color) {
@@ -328,15 +80,13 @@ class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerPr
     );
   }
 
-  Widget _buildFilterChip(String label) {
-    final isSelected = _selectedFilter == label;
+  Widget _buildFilterChip(String label, String selectedFilter) {
+    final isSelected = selectedFilter == label;
     return FilterChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
-        setState(() {
-          _selectedFilter = selected ? label : 'الكل';
-        });
+        context.read<AbsenceRequestsCubit>().selectFilter(selected ? label : 'الكل');
         _animationController.reset();
         _animationController.forward();
       },
@@ -346,6 +96,157 @@ class _AbsenceRequestsPageState extends State<AbsenceRequestsPage> with TickerPr
       labelStyle: TextStyle(
         color: isSelected ? AppColors.primary : AppColors.onSurface,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: 'طلبات تبرير الغياب',
+      currentIndex: 0,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: BlocConsumer<AbsenceRequestsCubit, AbsenceRequestsState>(
+          listener: (context, state) {
+            if (state.errorMessage != null && state.errorMessage != _previousErrorMessage) {
+              _previousErrorMessage = state.errorMessage;
+              showAppFeedback(context, message: state.errorMessage!, isError: true);
+            }
+          },
+          builder: (context, state) {
+            return Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primary, AppColors.secondary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      const SectionHeader(
+                        title: 'طلبات تبرير الغياب',
+                        subtitle: 'راجع الطلبات واتخذ القرار بسرعة',
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStatCard('معلقة', state.pendingCount.toString(), AppColors.warning),
+                          _buildStatCard('مقبولة', state.approvedCount.toString(), AppColors.success),
+                          _buildStatCard('مرفوضة', state.rejectedCount.toString(), AppColors.error),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip('الكل', state.selectedFilter),
+                        const SizedBox(width: AppSpacing.sm),
+                        _buildFilterChip('قيد الانتظار', state.selectedFilter),
+                        const SizedBox(width: AppSpacing.sm),
+                        _buildFilterChip('مقبول', state.selectedFilter),
+                        const SizedBox(width: AppSpacing.sm),
+                        _buildFilterChip('مرفوض', state.selectedFilter),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: state.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : state.errorMessage != null
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(AppSpacing.lg),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.error_outline, size: 36, color: AppColors.warning),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    Text(state.errorMessage!, textAlign: TextAlign.center),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    ElevatedButton.icon(
+                                      onPressed: _refreshRequests,
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('إعادة المحاولة'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : state.filteredRequests.isEmpty
+                              ? const Center(child: Text('لا توجد طلبات في هذه الفئة'))
+                              : ListView.builder(
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  itemCount: state.filteredRequests.length,
+                                  itemBuilder: (context, index) {
+                                    final request = state.filteredRequests[index];
+                                    return AnimatedBuilder(
+                                      animation: _animationController,
+                                      builder: (context, child) {
+                                        return FadeTransition(
+                                          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+                                            CurvedAnimation(
+                                              parent: _animationController,
+                                              curve: Interval(
+                                                index * 0.1,
+                                                1.0,
+                                                curve: Curves.easeInOut,
+                                              ),
+                                            ),
+                                          ),
+                                          child: SlideTransition(
+                                            position: Tween<Offset>(
+                                              begin: const Offset(0, 0.1),
+                                              end: Offset.zero,
+                                            ).animate(
+                                              CurvedAnimation(
+                                                parent: _animationController,
+                                                curve: Interval(
+                                                  index * 0.1,
+                                                  1.0,
+                                                  curve: Curves.easeOut,
+                                                ),
+                                              ),
+                                            ),
+                                            child: _RequestCard(
+                                              request: request,
+                                              onStatusChanged: (status) => context.read<AbsenceRequestsCubit>().updateRequestStatus(request.id, status),
+                                              onDelete: () => context.read<AbsenceRequestsCubit>().deleteRequest(request.id),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                  child: PrimaryButton(
+                    label: 'عرض الصفوف الخاصة بي',
+                    icon: Icons.class_,
+                    onPressed: () => Navigator.pushNamed(context, RouteNames.classes),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -368,8 +269,8 @@ class _RequestCard extends StatefulWidget {
 
 class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixin {
   bool _isExpanded = false;
-  late AnimationController _expandController;
-  late Animation<double> _expandAnimation;
+  late final AnimationController _expandController;
+  late final Animation<double> _expandAnimation;
 
   @override
   void initState() {
@@ -378,9 +279,7 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _expandAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _expandController, curve: Curves.easeInOut),
-    );
+    _expandAnimation = CurvedAnimation(parent: _expandController, curve: Curves.easeInOut);
   }
 
   @override
@@ -411,11 +310,23 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
     }
   }
 
+  void _toggleExpanded() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+      if (_isExpanded) {
+        _expandController.forward();
+      } else {
+        _expandController.reverse();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isPending = widget.request.status == 'pending';
     final statusColor = _statusColor(widget.request.status);
     final statusLabel = _statusLabel(widget.request.status);
+    final isPending = widget.request.status == 'pending';
+
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -434,25 +345,14 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            setState(() {
-              _isExpanded = !_isExpanded;
-              if (_isExpanded) {
-                _expandController.forward();
-              } else {
-                _expandController.reverse();
-              }
-            });
-          },
+          onTap: _toggleExpanded,
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
                 Row(
                   children: [
-                    // Student Avatar
                     Hero(
                       tag: 'student-${widget.request.id}',
                       child: CircleAvatar(
@@ -469,7 +369,6 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
-                    // Student Info
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,14 +389,10 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
-                    StatusBadge(
-                      label: statusLabel,
-                      color: statusColor,
-                    ),
+                    StatusBadge(label: statusLabel, color: statusColor),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
-                // Date and Reason
                 Row(
                   children: [
                     Icon(
@@ -529,7 +424,6 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                   maxLines: _isExpanded ? null : 2,
                   overflow: _isExpanded ? null : TextOverflow.ellipsis,
                 ),
-                // Expanded Details
                 SizeTransition(
                   sizeFactor: _expandAnimation,
                   child: Column(
@@ -546,9 +440,11 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                             color: AppColors.onSurface.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            'ولي الأمر: ${widget.request.parentName}',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          Expanded(
+                            child: Text(
+                              'ولي الأمر: ${widget.request.parentName}',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
                           ),
                         ],
                       ),
@@ -615,16 +511,7 @@ class _RequestCardState extends State<_RequestCard> with TickerProviderStateMixi
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: TextButton.icon(
-                                onPressed: () {
-                                  setState(() {
-                                    _isExpanded = !_isExpanded;
-                                    if (_isExpanded) {
-                                      _expandController.forward();
-                                    } else {
-                                      _expandController.reverse();
-                                    }
-                                  });
-                                },
+                                onPressed: _toggleExpanded,
                                 icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
                                 label: Text(_isExpanded ? 'تصغير' : 'التفاصيل'),
                               ),
