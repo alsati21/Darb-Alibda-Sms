@@ -10,6 +10,9 @@ import '../../features/absence_requests/presentation/pages/absence_requests_page
 import '../../features/grades/presentation/pages/grades_page.dart';
 import '../../features/notes/presentation/pages/notes_page.dart';
 import '../../features/news/presentation/pages/news_page.dart';
+import '../../features/teacher_feedback/presentation/pages/teacher_feedback_page.dart';
+import '../../features/teacher_complaints/presentation/pages/teacher_complaints_page.dart';
+import '../../features/teacher_notifications/presentation/pages/teacher_notifications_page.dart';
 import '../../features/profile/presentation/pages/teacher_profile_page.dart';
 import 'route_names.dart';
 
@@ -36,6 +39,12 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const NotesPage());
       case RouteNames.news:
         return MaterialPageRoute(builder: (_) => const NewsPage());
+      case RouteNames.feedback:
+        return MaterialPageRoute(builder: (_) => const TeacherFeedbackPage());
+      case RouteNames.complaints:
+        return MaterialPageRoute(builder: (_) => const TeacherComplaintsPage());
+      case RouteNames.notifications:
+        return MaterialPageRoute(builder: (_) => const TeacherNotificationsPage());
       case RouteNames.profile:
         return MaterialPageRoute(builder: (_) => const TeacherProfilePage());
       default:

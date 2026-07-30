@@ -1,13 +1,18 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/support_repository.dart';
+import '../../data/models/support_info.dart';
 import '../../../../core/storage/token_storage.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
-  AuthCubit(this._authRepository) : super(const AuthInitial());
+  AuthCubit(this._authRepository, {SupportRepository? supportRepository})
+      : _supportRepository = supportRepository ?? SupportRepository(),
+        super(const AuthInitial());
 
   final AuthRepository _authRepository;
+  final SupportRepository _supportRepository;
   String? _sessionToken;
   final TokenStorage _tokenStorage = TokenStorage();
 
@@ -99,6 +104,15 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthSuccess(payload: response));
     } catch (error) {
       emit(AuthFailure(_readErrorMessage(error)));
+    }
+  }
+
+  Future<SupportInfo?> fetchSupportInfo() async {
+    try {
+     // if (token == null || token.isEmpty) return null;
+      return await _supportRepository.fetchSupportInfo();
+    } catch (error) {
+      return null;
     }
   }
 

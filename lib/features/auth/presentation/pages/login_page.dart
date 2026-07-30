@@ -6,6 +6,7 @@ import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/widgets/primary_button.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/app_feedback.dart';
+import '../../../../shared/widgets/support_info_dialog.dart';
 import '../../../../core/navigation/route_names.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
@@ -54,6 +55,24 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       phone: _phoneController.text.trim(),
       password: _passwordController.text,
     );
+  }
+
+  void _showSupportDialog() async {
+    final cubit = context.read<AuthCubit>();
+    final supportInfo = await cubit.fetchSupportInfo();
+
+    if (!mounted) return;
+
+    if (supportInfo == null) {
+      showAppFeedback(
+        context,
+        message: 'تعذر جلب بيانات الدعم. حاول لاحقاً.',
+        isError: true,
+      );
+      return;
+    }
+
+    await SupportInfoDialog.show(context, supportInfo);
   }
 
   @override
@@ -206,7 +225,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: _showSupportDialog,
                               child: Text(
                                 'نسيت كلمة المرور؟',
                                 style: TextStyle(color: AppColors.primary),

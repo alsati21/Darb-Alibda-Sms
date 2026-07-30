@@ -307,57 +307,59 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            InkWell(
-                              onTap: _editAvatar,
-                              borderRadius: BorderRadius.circular(80),
-                              child: CircleAvatar(
-                                radius: 46,
-                                backgroundColor: AppColors.onPrimary.withValues(alpha: 0.12),
-                                child: _avatarFile != null
-                                    ? ClipOval(
-                                        child: Image.file(
-                                          File(_avatarFile!.path),
-                                          width: 92,
-                                          height: 92,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      )
-                                    : (_avatarUrl != null
-                                        ? ClipOval(
-                                            child: Image.network(
-                                              _avatarUrl!,
-                                              width: 92,
-                                              height: 92,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) {
-                                                return Container(
-                                                  width: 92,
-                                                  height: 92,
-                                                  color: AppColors.surfaceVariant,
-                                                  child: Center(
-                                                    child: Text(
-                                                      _initialsFromName(_nameController.text) ?? 'م',
-                                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                                            fontWeight: FontWeight.w700,
-                                                            color: AppColors.onSurface,
-                                                          ),
+                            Material(
+                              child: InkWell(
+                                onTap: _editAvatar,
+                                borderRadius: BorderRadius.circular(80),
+                                child: CircleAvatar(
+                                  radius: 46,
+                                  backgroundColor: AppColors.onPrimary.withValues(alpha: 0.12),
+                                  child: _avatarFile != null
+                                      ? ClipOval(
+                                          child: Image.file(
+                                            File(_avatarFile!.path),
+                                            width: 92,
+                                            height: 92,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      : (_avatarUrl != null
+                                          ? ClipOval(
+                                              child: Image.network(
+                                                _avatarUrl!,
+                                                width: 92,
+                                                height: 92,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  return Container(
+                                                    width: 92,
+                                                    height: 92,
+                                                    color: AppColors.surfaceVariant,
+                                                    child: Center(
+                                                      child: Text(
+                                                        _initialsFromName(_nameController.text) ?? 'م',
+                                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                              fontWeight: FontWeight.w700,
+                                                              color: AppColors.onSurface,
+                                                            ),
+                                                      ),
                                                     ),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          )
-                                        : CircleAvatar(
-                                            radius: 40,
-                                            backgroundColor: AppColors.surfaceVariant,
-                                            child: Text(
-                                              _initialsFromName(_nameController.text) ?? '',
-                                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors.onSurface,
-                                                  ),
-                                            ),
-                                          )),
+                                                  );
+                                                },
+                                              ),
+                                            )
+                                          : CircleAvatar(
+                                              radius: 40,
+                                              backgroundColor: AppColors.surfaceVariant,
+                                              child: Text(
+                                                _initialsFromName(_nameController.text) ?? '',
+                                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                      fontWeight: FontWeight.w700,
+                                                      color: AppColors.onSurface,
+                                                    ),
+                                              ),
+                                            )),
+                                ),
                               ),
                             ),
                             Positioned(

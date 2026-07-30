@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/navigation/app_router.dart';
 import 'features/auth/data/repositories/auth_repository.dart';
+import 'features/auth/data/repositories/support_repository.dart';
 import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/auth/presentation/cubit/auth_state.dart';
 import 'features/auth/presentation/pages/login_page.dart';
@@ -16,17 +20,57 @@ import 'features/classes/data/repositories/classes_repository.dart';
 import 'features/dashboard/data/repositories/dashboard_repository.dart';
 import 'features/dashboard/presentation/cubit/dashboard_cubit.dart';
 import 'features/dashboard/presentation/pages/dashboard_page.dart';
+import 'features/grades/data/repositories/grades_repository.dart';
 import 'features/grades/presentation/cubit/grades_cubit.dart';
 import 'features/news/data/repositories/news_repository.dart';
 import 'features/news/presentation/cubit/news_cubit.dart';
+import 'features/notes/data/repositories/parent_notes_repository.dart';
 import 'features/notes/presentation/cubit/notes_cubit.dart';
 import 'features/profile/presentation/cubit/profile_cubit.dart';
+import 'features/teacher_feedback/data/repositories/teacher_feedback_repository.dart';
+import 'features/teacher_feedback/presentation/cubit/teacher_feedback_cubit.dart';
+import 'features/teacher_complaints/data/repositories/teacher_complaints_repository.dart';
+import 'features/teacher_complaints/presentation/cubit/teacher_complaints_cubit.dart';
+import 'features/teacher_notifications/data/repositories/teacher_notifications_repository.dart';
+import 'features/teacher_notifications/presentation/cubit/teacher_notifications_cubit.dart';
 import 'features/schedule/data/repositories/schedule_repository.dart';
 import 'features/schedule/presentation/cubit/schedule_cubit.dart';
 import 'shared/theme/app_theme.dart';
 
 void main() {
-  runApp(const SchoolTeacherApp());
+  // نلتقط أي استثناء غير متوقع (سواء بمرحلة البناء أو داخل Future/Timer
+  // غير مُنتظَر) قبل ما يوصل لمستوى الـ engine ويظهر كـ "native crash".
+  // هاد ما بيمنع الأخطاء، بس بيحوّلها من كراش صامت (tombstone بدون
+  // تفاصيل) لخطأ Dart واضح فيه اسم الملف والسطر ونوع الاستثناء —
+  // وهاد أهم خطوة لتشخيص أي كراش قادم بدقة.
+  runZonedGuarded(
+        () {
+      FlutterError.onError = (FlutterErrorDetails details) {
+        FlutterError.presentError(details);
+        debugPrint('FlutterError: ${details.exceptionAsString()}');
+        debugPrint('${details.stack}');
+        // TODO: أرسل details لخدمة تتبّع أخطاء زي Sentry/Firebase
+        // Crashlytics هون بدل الـ debugPrint، خصوصًا للـ release.
+      };
+
+      // يلتقط أخطاء تصل لمستوى الـ platform dispatcher (مثلاً من
+      // isolates أو callbacks خارج شجرة الودجت) بدل ما تهرب بالكامل.
+      PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+        debugPrint('PlatformDispatcher error: $error');
+        debugPrint('$stack');
+        // TODO: أرسل error/stack لخدمة تتبّع أخطاء هون كمان.
+        return true; // true = تم التعامل معه، ما يهرب أبعد.
+      };
+
+      runApp(const SchoolTeacherApp());
+    },
+        (Object error, StackTrace stack) {
+      // أي استثناء async هرب من كل الطبقات فوق بيوصل هون كملاذ أخير.
+      debugPrint('Uncaught zone error: $error');
+      debugPrint('$stack');
+      // TODO: أرسل error/stack لخدمة تتبّع أخطاء هون كمان.
+    },
+  );
 }
 
 class SchoolTeacherApp extends StatelessWidget {
@@ -37,17 +81,26 @@ class SchoolTeacherApp extends StatelessWidget {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<AuthRepository>(create: (_) => AuthRepository()),
+        RepositoryProvider<SupportRepository>(create: (_) => SupportRepository()),
         RepositoryProvider<DashboardRepository>(create: (_) => DashboardRepository()),
         RepositoryProvider<AttendanceRepository>(create: (_) => AttendanceRepository()),
         RepositoryProvider<NewsRepository>(create: (_) => NewsRepository()),
         RepositoryProvider<ClassesRepository>(create: (_) => ClassesRepository()),
         RepositoryProvider<ScheduleRepository>(create: (_) => ScheduleRepository()),
         RepositoryProvider<AbsenceRequestsRepository>(create: (_) => AbsenceRequestsRepository()),
+        RepositoryProvider<GradesRepository>(create: (_) => GradesRepository()),
+        RepositoryProvider<ParentNotesRepository>(create: (_) => ParentNotesRepository()),
+        RepositoryProvider<TeacherFeedbackRepository>(create: (_) => TeacherFeedbackRepository()),
+        RepositoryProvider<TeacherComplaintsRepository>(create: (_) => TeacherComplaintsRepository()),
+        RepositoryProvider<TeacherNotificationsRepository>(create: (_) => TeacherNotificationsRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider<AuthCubit>(
-            create: (context) => AuthCubit(context.read<AuthRepository>())..tryRestoreSession(),
+            create: (context) => AuthCubit(
+              context.read<AuthRepository>(),
+              supportRepository: context.read<SupportRepository>(),
+            )..tryRestoreSession(),
           ),
           BlocProvider<NewsCubit>(
             create: (context) => NewsCubit(context.read<NewsRepository>()),
@@ -68,13 +121,25 @@ class SchoolTeacherApp extends StatelessWidget {
             create: (context) => ProfileCubit(context.read<AuthRepository>()),
           ),
           BlocProvider<GradesCubit>(
-            create: (_) => GradesCubit(),
+            create: (context) => GradesCubit(context.read<GradesRepository>()),
           ),
           BlocProvider<NotesCubit>(
-            create: (_) => NotesCubit(),
+            create: (context) => NotesCubit(
+              context.read<ParentNotesRepository>(),
+              context.read<AuthCubit>(),
+            ),
           ),
           BlocProvider<ClassesCubit>(
             create: (context) => ClassesCubit(context.read<ClassesRepository>()),
+          ),
+          BlocProvider<TeacherFeedbackCubit>(
+            create: (context) => TeacherFeedbackCubit(context.read<TeacherFeedbackRepository>()),
+          ),
+          BlocProvider<TeacherComplaintsCubit>(
+            create: (context) => TeacherComplaintsCubit(context.read<TeacherComplaintsRepository>()),
+          ),
+          BlocProvider<TeacherNotificationsCubit>(
+            create: (context) => TeacherNotificationsCubit(context.read<TeacherNotificationsRepository>()),
           ),
         ],
         child: BlocBuilder<AuthCubit, AuthState>(

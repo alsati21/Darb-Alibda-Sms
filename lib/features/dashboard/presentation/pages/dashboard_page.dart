@@ -247,7 +247,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                 const SizedBox(height: AppSpacing.lg),
                 const SectionHeader(
                   title: 'ملخص الأداء',
-                  subtitle: 'أهم المقاييس الحالية من الخادم',
+                  subtitle: 'أهم المقاييس الحالية',
                 ),
                 if (_isLoading)
                   const _DashboardSkeleton()
@@ -323,29 +323,47 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: [
-                    ActionTile(
-                      icon: Icons.how_to_reg,
-                      label: 'تسجيل الحضور',
-                      onTap: () => Navigator.pushNamed(context, RouteNames.attendance),
-                      color: AppColors.primaryContainer,
-                    ),
-                    ActionTile(
+                    // ActionTile(
+                    //   icon: Icons.how_to_reg,
+                    //   label: 'تسجيل الحضور',
+                    //   onTap: () => Navigator.pushNamed(context, RouteNames.attendance),
+                    //   color: AppColors.primaryContainer,
+                    // ),
+                     ActionTile(
                       icon: Icons.edit_note,
                       label: 'إدارة العلامات',
                       onTap: () => Navigator.pushNamed(context, RouteNames.grades),
                       color: AppColors.secondaryContainer,
                     ),
+                    // ActionTile(
+                    //   icon: Icons.assignment,
+                    //   label: 'طلبات الغياب',
+                    //   onTap: () => Navigator.pushNamed(context, RouteNames.absenceRequests),
+                    //   color: AppColors.surfaceVariant,
+                    // ),
+                    // ActionTile(
+                    //   icon: Icons.campaign,
+                    //   label: 'الأخبار',
+                    //   onTap: () => Navigator.pushNamed(context, RouteNames.news),
+                    //   color: AppColors.secondaryContainer,
+                    // ),
                     ActionTile(
-                      icon: Icons.assignment,
-                      label: 'طلبات الغياب',
-                      onTap: () => Navigator.pushNamed(context, RouteNames.absenceRequests),
+                      icon: Icons.feedback_outlined,
+                      label: 'الاقتراحات',
+                      onTap: () => Navigator.pushNamed(context, RouteNames.feedback),
                       color: AppColors.surfaceVariant,
                     ),
                     ActionTile(
-                      icon: Icons.campaign,
-                      label: 'الأخبار',
-                      onTap: () => Navigator.pushNamed(context, RouteNames.news),
-                      color: AppColors.secondaryContainer,
+                      icon: Icons.report_gmailerrorred_outlined,
+                      label: 'الشكاوى',
+                      onTap: () => Navigator.pushNamed(context, RouteNames.complaints),
+                      color: AppColors.surfaceVariant,
+                    ),
+                    ActionTile(
+                      icon: Icons.mark_chat_unread,
+                      label: 'ملاحظات الأهل',
+                      onTap: () => Navigator.pushNamed(context, RouteNames.notes),
+                      color: AppColors.primaryContainer,
                     ),
                     ActionTile(
                       icon: Icons.person,

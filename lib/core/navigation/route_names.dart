@@ -11,5 +11,8 @@ class RouteNames {
   static const String grades = '/grades';
   static const String notes = '/notes';
   static const String news = '/news';
+  static const String feedback = '/feedback';
+  static const String complaints = '/complaints';
+  static const String notifications = '/notifications';
   static const String profile = '/profile';
 }

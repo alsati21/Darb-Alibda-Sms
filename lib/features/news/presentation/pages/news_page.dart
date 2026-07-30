@@ -7,7 +7,11 @@ import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../data/models/teacher_news_item.dart';
+import '../../../../core/network/api_client.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../cubit/news_cubit.dart';
+import 'video_dialog.dart';
 
 class NewsPage extends StatefulWidget {
   const NewsPage({super.key});
@@ -87,37 +91,57 @@ class _NewsPageState extends State<NewsPage> with TickerProviderStateMixin {
                                 children: [
                                   Text(
                                     'آخر الأخبار',
-                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      color: AppColors.onPrimary,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          color: AppColors.onPrimary,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                   ),
                                   const SizedBox(height: AppSpacing.xs),
                                   Text(
                                     'تابع الإعلانات الرسمية والتنبيهات المهمة',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: AppColors.onPrimary.withValues(alpha: 0.9),
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: AppColors.onPrimary.withValues(
+                                            alpha: 0.9,
+                                          ),
+                                        ),
                                   ),
                                 ],
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.onPrimary.withValues(alpha: 0.18),
+                                color: AppColors.onPrimary.withValues(
+                                  alpha: 0.18,
+                                ),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.notifications_none, color: AppColors.onPrimary, size: 20),
+                                  const Icon(
+                                    Icons.notifications_none,
+                                    color: AppColors.onPrimary,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     '$unreadCount غير مقروءة',
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: AppColors.onPrimary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: AppColors.onPrimary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                   ),
                                 ],
                               ),
@@ -130,7 +154,8 @@ class _NewsPageState extends State<NewsPage> with TickerProviderStateMixin {
                             width: double.infinity,
                             child: PrimaryButton(
                               label: 'تحديد الكل كمقروء',
-                              onPressed: () => context.read<NewsCubit>().markAllAsRead(),
+                              onPressed: () =>
+                                  context.read<NewsCubit>().markAllAsRead(),
                               icon: Icons.done_all,
                             ),
                           ),
@@ -149,7 +174,12 @@ class _NewsPageState extends State<NewsPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildBody(BuildContext context, bool isLoading, String? errorMessage, List<TeacherNewsItem> news) {
+  Widget _buildBody(
+    BuildContext context,
+    bool isLoading,
+    String? errorMessage,
+    List<TeacherNewsItem> news,
+  ) {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -161,11 +191,24 @@ class _NewsPageState extends State<NewsPage> with TickerProviderStateMixin {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 42, color: AppColors.warning),
+              const Icon(
+                Icons.error_outline,
+                size: 42,
+                color: AppColors.warning,
+              ),
               const SizedBox(height: AppSpacing.sm),
-              Text('تعذر تحميل الأخبار', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                'تعذر تحميل الأخبار',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: AppSpacing.xs),
-              Text(errorMessage, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const SizedBox(height: AppSpacing.md),
               ElevatedButton.icon(
                 onPressed: () {
@@ -188,11 +231,24 @@ class _NewsPageState extends State<NewsPage> with TickerProviderStateMixin {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.inbox_outlined, size: 42, color: AppColors.primary),
+              const Icon(
+                Icons.inbox_outlined,
+                size: 42,
+                color: AppColors.primary,
+              ),
               const SizedBox(height: AppSpacing.sm),
-              Text('لا توجد أخبار حاليا', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                'لا توجد أخبار حاليا',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: AppSpacing.xs),
-              Text('ستظهر الإعلانات القادمة هنا بمجرد وصولها من الخادم.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                'ستظهر الإعلانات القادمة هنا بمجرد وصولها من الخادم.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ],
           ),
         ),
@@ -246,6 +302,78 @@ class _NewsCardState extends State<_NewsCard> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<void> _openUrl(String url) async {
+    try {
+      final uri = Uri.tryParse(url);
+      if (uri == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('رابط غير صالح')));
+        return;
+      }
+
+      final can = await canLaunchUrl(uri);
+      if (!can) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر فتح الرابط: لا يوجد تطبيق مناسب')),
+        );
+        return;
+      }
+
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط')));
+      }
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حدث خطأ أثناء محاولة فتح الرابط')),
+      );
+    }
+  }
+
+  Future<void> _showImageViewer(String url) async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(8),
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: InteractiveViewer(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stack) => Container(
+                  color: AppColors.onSurface.withValues(alpha: 0.04),
+                  height: 300,
+                  width: 300,
+                  child: const Center(child: Icon(Icons.broken_image)),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showVideoViewer(String url) async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(8),
+          child: VideoDialog(url: url),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isRead = widget.news.isRead;
@@ -285,7 +413,9 @@ class _NewsCardState extends State<_NewsCard> with TickerProviderStateMixin {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
-                      isRead ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                      isRead
+                          ? Icons.mark_email_read_outlined
+                          : Icons.mark_email_unread_outlined,
                       color: accent,
                       size: 24,
                     ),
@@ -297,29 +427,45 @@ class _NewsCardState extends State<_NewsCard> with TickerProviderStateMixin {
                       children: [
                         Text(
                           widget.news.title,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: isRead ? AppColors.onSurface.withValues(alpha: 0.75) : AppColors.onSurface,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: isRead
+                                    ? AppColors.onSurface.withValues(
+                                        alpha: 0.75,
+                                      )
+                                    : AppColors.onSurface,
+                              ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           widget.news.formattedCreatedAt,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withValues(alpha: 0.65)),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppColors.onSurface.withValues(
+                                  alpha: 0.65,
+                                ),
+                              ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       isRead ? 'مقروء' : 'جديد',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: accent, fontWeight: FontWeight.w700),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -327,7 +473,10 @@ class _NewsCardState extends State<_NewsCard> with TickerProviderStateMixin {
               const SizedBox(height: AppSpacing.md),
               Text(
                 widget.news.body,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5, color: AppColors.onSurface.withValues(alpha: 0.8)),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  height: 1.5,
+                  color: AppColors.onSurface.withValues(alpha: 0.8),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               Row(
@@ -335,15 +484,25 @@ class _NewsCardState extends State<_NewsCard> with TickerProviderStateMixin {
                   Expanded(
                     child: Text(
                       'منشئ الخبر: ${widget.news.creatorName}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withValues(alpha: 0.7)),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.onSurface.withValues(alpha: 0.7),
+                      ),
                     ),
                   ),
                   if (widget.news.hasAttachments)
                     Row(
                       children: [
-                        const Icon(Icons.attach_file, size: 18, color: AppColors.primary),
+                        const Icon(
+                          Icons.attach_file,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: AppSpacing.xs),
-                        Text('مرفقات', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.primary)),
+                        Text(
+                          'مرفقات',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.primary),
+                        ),
                       ],
                     ),
                 ],
@@ -356,16 +515,255 @@ class _NewsCardState extends State<_NewsCard> with TickerProviderStateMixin {
                   children: [
                     const Divider(),
                     const SizedBox(height: AppSpacing.sm),
+                    if (widget.news.attachmentList.isNotEmpty)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'المرفقات',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          ...widget.news.attachmentList.map((att) {
+                            // 1. التأكد من شكل المسار القادم من المرفق
+                            final path = att.path.startsWith('/') ? att.path : '/${att.path}';
+
+                            // 2. دمج storage مع المسار ليتكون الرابط الصحيح
+                            final url = ApiClient().baseUrl + '/storage' + path;
+
+                            // أعد بقية الكود الخاص بك هنا
+                            if (att.isImage) {
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: AppSpacing.sm,
+                                ),
+                                child: GestureDetector(
+                                  onTap: () => _showImageViewer(url),
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          url,
+                                          height: 180,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stack) =>
+                                                  Container(
+                                                    height: 180,
+                                                    color: AppColors.onSurface
+                                                        .withValues(
+                                                          alpha: 0.04,
+                                                        ),
+                                                    child: const Center(
+                                                      child: Icon(
+                                                        Icons.broken_image,
+                                                      ),
+                                                    ),
+                                                  ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        right: 8,
+                                        top: 8,
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: IconButton(
+                                                icon: const Icon(
+                                                  Icons.open_in_new,
+                                                  size: 18,
+                                                  color: Colors.white,
+                                                ),
+                                                onPressed: () => _openUrl(url),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: IconButton(
+                                                icon: const Icon(
+                                                  Icons.copy,
+                                                  size: 18,
+                                                  color: Colors.white,
+                                                ),
+                                                onPressed: () {
+                                                  Clipboard.setData(
+                                                    ClipboardData(text: url),
+                                                  );
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'تم نسخ الرابط',
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (att.isVideo) {
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: AppSpacing.sm,
+                                ),
+                                child: GestureDetector(
+                                  onTap: () => _showVideoViewer(url),
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        height: 180,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.onSurface.withValues(
+                                            alpha: 0.04,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                Icons.play_circle_fill,
+                                                size: 56,
+                                                color: AppColors.primary,
+                                              ),
+                                              const SizedBox(
+                                                height: AppSpacing.xs,
+                                              ),
+                                              Text(
+                                                'مشاهدة الفيديو',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      color: AppColors.primary,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        right: 8,
+                                        top: 8,
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: IconButton(
+                                                icon: const Icon(
+                                                  Icons.open_in_new,
+                                                  size: 18,
+                                                  color: Colors.white,
+                                                ),
+                                                onPressed: () => _openUrl(url),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: IconButton(
+                                                icon: const Icon(
+                                                  Icons.copy,
+                                                  size: 18,
+                                                  color: Colors.white,
+                                                ),
+                                                onPressed: () {
+                                                  Clipboard.setData(
+                                                    ClipboardData(text: url),
+                                                  );
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'تم نسخ الرابط',
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(
+                                Icons.insert_drive_file,
+                                color: AppColors.primary,
+                              ),
+                              title: Text(
+                                att.fileName.isNotEmpty
+                                    ? att.fileName
+                                    : att.path,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              trailing: TextButton(
+                                onPressed: () => _openUrl(url),
+                                child: const Text('فتح'),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ),
                     Text(
                       'البريد: ${widget.news.creatorEmail}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withValues(alpha: 0.65)),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.onSurface.withValues(alpha: 0.65),
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Row(
                       children: [
-                        Icon(_isExpanded ? Icons.expand_less : Icons.expand_more, color: AppColors.onSurface.withValues(alpha: 0.6)),
+                        Icon(
+                          _isExpanded ? Icons.expand_less : Icons.expand_more,
+                          color: AppColors.onSurface.withValues(alpha: 0.6),
+                        ),
                         const SizedBox(width: AppSpacing.xs),
-                        Text(_isExpanded ? 'إخفاء التفاصيل' : 'عرض التفاصيل', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.primary)),
+                        Text(
+                          _isExpanded ? 'إخفاء التفاصيل' : 'عرض التفاصيل',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.primary),
+                        ),
                       ],
                     ),
                   ],
