@@ -8,6 +8,7 @@ class TeacherNewsItem {
     required this.creatorName,
     required this.creatorEmail,
     required this.attachmentCount,
+      required this.attachments,
     required this.createdAt,
   });
 
@@ -19,16 +20,19 @@ class TeacherNewsItem {
   final String creatorName;
   final String creatorEmail;
   final int attachmentCount;
+  final List<NewsAttachment> attachments;
   final DateTime createdAt;
 
-  bool get hasAttachments => attachmentCount > 0;
+  bool get hasAttachments => attachmentCount > 0 || attachments.isNotEmpty;
+
+  List<NewsAttachment> get attachmentList => attachments;
 
   String get formattedCreatedAt {
     final date = createdAt.toLocal();
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} • ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  TeacherNewsItem copyWith({bool? isRead}) {
+  TeacherNewsItem copyWith({bool? isRead, List<NewsAttachment>? attachments}) {
     return TeacherNewsItem(
       id: id,
       title: title,
@@ -38,6 +42,7 @@ class TeacherNewsItem {
       creatorName: creatorName,
       creatorEmail: creatorEmail,
       attachmentCount: attachmentCount,
+      attachments: attachments ?? this.attachments,
       createdAt: createdAt,
     );
   }
@@ -50,6 +55,10 @@ class TeacherNewsItem {
 
     final attachments = json['attachments'];
     final attachmentsList = attachments is List ? attachments : const [];
+    final parsedAttachments = attachmentsList
+      .whereType<Map>()
+      .map((a) => NewsAttachment.fromJson(Map<String, dynamic>.from(a)))
+      .toList();
 
     return TeacherNewsItem(
       id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? 0,
@@ -60,7 +69,38 @@ class TeacherNewsItem {
       creatorName: '${creatorMap['name'] ?? ''}'.trim(),
       creatorEmail: '${creatorMap['email'] ?? ''}'.trim(),
       attachmentCount: attachmentsList.length,
+      attachments: parsedAttachments,
       createdAt: DateTime.tryParse('${json['created_at'] ?? ''}') ?? DateTime.now(),
+    );
+  }
+}
+
+class NewsAttachment {
+  const NewsAttachment({
+    required this.id,
+    required this.path,
+    required this.fileName,
+  });
+
+  final int id;
+  final String path;
+  final String fileName;
+
+  bool get isImage {
+    final p = path.toLowerCase();
+    return p.endsWith('.png') || p.endsWith('.jpg') || p.endsWith('.jpeg') || p.endsWith('.webp') || p.endsWith('.gif');
+  }
+
+  bool get isVideo {
+    final p = path.toLowerCase();
+    return p.endsWith('.mp4') || p.endsWith('.webm') || p.endsWith('.mov');
+  }
+
+  factory NewsAttachment.fromJson(Map<String, dynamic> json) {
+    return NewsAttachment(
+      id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? 0,
+      path: '${json['path'] ?? ''}'.trim(),
+      fileName: '${json['file_name'] ?? ''}'.trim(),
     );
   }
 }

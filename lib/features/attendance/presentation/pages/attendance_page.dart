@@ -227,7 +227,7 @@ class _AttendancePageState extends State<AttendancePage>
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'سجل الحضور',
-      currentIndex: 0,
+      currentIndex: 1,
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: Column(
@@ -444,7 +444,7 @@ class _AttendancePageState extends State<AttendancePage>
                   isExpanded: true,
                   value: _selectedSectionId == 0 ? null : _selectedSectionId,
                   decoration: InputDecoration(
-                    labelText: 'الشعبة',
+                    labelText: 'الصف و الشعبة',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -478,57 +478,57 @@ class _AttendancePageState extends State<AttendancePage>
                   },
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  isExpanded: true,
-                  value: _selectedScheduleId == 0 ? null : _selectedScheduleId,
-                  decoration: InputDecoration(
-                    labelText: 'الحصة',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: AppColors.surfaceVariant,
-                  ),
-                  items: _sections
-                      .firstWhere(
-                        (item) => item.sectionId == _selectedSectionId,
-                        orElse: () => _sections.isNotEmpty
-                            ? _sections.first
-                            : TeacherAttendanceSection(
-                                sectionId: 0,
-                                sectionName: '',
-                                sectionFullName: '',
-                                classId: 0,
-                                className: '',
-                                totalStudents: 0,
-                                attendance: TeacherAttendanceSummary(
-                                  date: '',
-                                  present: 0,
-                                  absent: 0,
-                                  late: 0,
-                                  excused: 0,
-                                  percentage: 0,
-                                ),
-                                schedules: const <TeacherAttendanceSchedule>[],
-                                students: const <TeacherAttendanceStudent>[],
-                              ),
-                      )
-                      .schedules
-                      .map(
-                        (schedule) => DropdownMenuItem<int>(
-                          value: schedule.scheduleId,
-                          child: Text(schedule.subjectName),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _selectedScheduleId = value);
-                  },
-                ),
-              ),
+            //  const SizedBox(width: AppSpacing.sm),
+             //  Expanded(
+             //    child: DropdownButtonFormField<int>(
+             //      isExpanded: true,
+             //      value: _selectedScheduleId == 0 ? null : _selectedScheduleId,
+             // // //     decoration: InputDecoration(
+             // //        labelText: 'الحصة',
+             // //        border: OutlineInputBorder(
+             // //          borderRadius: BorderRadius.circular(12),
+             // //        ),
+             // //        filled: true,
+             // //        fillColor: AppColors.surfaceVariant,
+             // //      ),
+             //      items: _sections
+             //          .firstWhere(
+             //            (item) => item.sectionId == _selectedSectionId,
+             //            orElse: () => _sections.isNotEmpty
+             //                ? _sections.first
+             //                : TeacherAttendanceSection(
+             //                    sectionId: 0,
+             //                    sectionName: '',
+             //                    sectionFullName: '',
+             //                    classId: 0,
+             //                    className: '',
+             //                    totalStudents: 0,
+             //                    attendance: TeacherAttendanceSummary(
+             //                      date: '',
+             //                      present: 0,
+             //                      absent: 0,
+             //                      late: 0,
+             //                      excused: 0,
+             //                      percentage: 0,
+             //                    ),
+             //                    schedules: const <TeacherAttendanceSchedule>[],
+             //                    students: const <TeacherAttendanceStudent>[],
+             //                  ),
+             //          )
+             //          .schedules
+             //          .map(
+             //            (schedule) => DropdownMenuItem<int>(
+             //              value: schedule.scheduleId,
+             //              child: Text(schedule.subjectName),
+             //            ),
+             //          )
+             //          .toList(),
+             //      onChanged: (value) {
+             //        if (value == null) return;
+             //        setState(() => _selectedScheduleId = value);
+             //      },
+             //    ),
+             //  ),
             ],
           ),
         ],

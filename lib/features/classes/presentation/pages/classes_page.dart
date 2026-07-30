@@ -19,7 +19,8 @@ class ClassesPage extends StatefulWidget {
   State<ClassesPage> createState() => _ClassesPageState();
 }
 
-class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin {
+class _ClassesPageState extends State<ClassesPage>
+    with TickerProviderStateMixin {
   late final TextEditingController _searchController;
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
@@ -28,8 +29,14 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
   void initState() {
     super.initState();
     _searchController = TextEditingController();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
     _animationController.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final token = context.read<AuthCubit>().sessionToken;
@@ -47,7 +54,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      currentIndex: 0,
+      currentIndex: 4,
       title: 'الصفوف',
       body: FadeTransition(
         opacity: _fadeAnimation,
@@ -80,7 +87,8 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: _searchController,
-                    onChanged: (value) => context.read<ClassesCubit>().updateSearchQuery(value),
+                    onChanged: (value) =>
+                        context.read<ClassesCubit>().updateSearchQuery(value),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
                       hintText: 'بحث باسم المادة أو الشعبة',
@@ -96,7 +104,10 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
@@ -105,23 +116,23 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
             ),
 
             // Filter Chips
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip('الكل'),
-                    const SizedBox(width: AppSpacing.sm),
-                    _buildFilterChip('نشط'),
-                    const SizedBox(width: AppSpacing.sm),
-                    _buildFilterChip('مكتمل'),
-                    const SizedBox(width: AppSpacing.sm),
-                    _buildFilterChip('مفتوح'),
-                  ],
-                ),
-              ),
-            ),
+            // Container(
+            //   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            //   child: SingleChildScrollView(
+            //     scrollDirection: Axis.horizontal,
+            //     child: Row(
+            //       children: [
+            //         _buildFilterChip('الكل'),
+            //         const SizedBox(width: AppSpacing.sm),
+            //         _buildFilterChip('نشط'),
+            //         const SizedBox(width: AppSpacing.sm),
+            //         _buildFilterChip('مكتمل'),
+            //         const SizedBox(width: AppSpacing.sm),
+            //         _buildFilterChip('مفتوح'),
+            //       ],
+            //     ),
+            //   ),
+            // ),
 
             // Classes List (driven by ClassesCubit)
             Expanded(
@@ -138,16 +149,32 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.error_outline, size: 42, color: AppColors.warning),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 42,
+                              color: AppColors.warning,
+                            ),
                             const SizedBox(height: AppSpacing.sm),
-                            Text('تعذر تحميل الصفوف', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                            Text(
+                              'تعذر تحميل الصفوف',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
                             const SizedBox(height: AppSpacing.xs),
-                            Text(state.errorMessage!, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+                            Text(
+                              state.errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
                             const SizedBox(height: AppSpacing.md),
                             ElevatedButton.icon(
                               onPressed: () {
-                                final token = context.read<AuthCubit>().sessionToken;
-                                context.read<ClassesCubit>().loadClasses(token: token);
+                                final token = context
+                                    .read<AuthCubit>()
+                                    .sessionToken;
+                                context.read<ClassesCubit>().loadClasses(
+                                  token: token,
+                                );
                               },
                               icon: const Icon(Icons.refresh),
                               label: const Text('إعادة المحاولة'),
@@ -176,31 +203,33 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                         animation: _animationController,
                         builder: (context, child) {
                           return FadeTransition(
-                            opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                              CurvedAnimation(
-                                parent: _animationController,
-                                curve: Interval(
-                                  index * 0.05,
-                                  1.0,
-                                  curve: Curves.easeInOut,
-                                ),
-                              ),
-                            ),
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0, 0.04),
-                                end: Offset.zero,
-                              ).animate(
-                                CurvedAnimation(
-                                  parent: _animationController,
-                                  curve: Interval(
-                                    index * 0.05,
-                                    1.0,
-                                    curve: Curves.easeOut,
+                            opacity: Tween<double>(begin: 0.0, end: 1.0)
+                                .animate(
+                                  CurvedAnimation(
+                                    parent: _animationController,
+                                    curve: Interval(
+                                      index * 0.05,
+                                      1.0,
+                                      curve: Curves.easeInOut,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              child: _buildClassCard(classItem, context)
+                            child: SlideTransition(
+                              position:
+                                  Tween<Offset>(
+                                    begin: const Offset(0, 0.04),
+                                    end: Offset.zero,
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: _animationController,
+                                      curve: Interval(
+                                        index * 0.05,
+                                        1.0,
+                                        curve: Curves.easeOut,
+                                      ),
+                                    ),
+                                  ),
+                              child: _buildClassCard(classItem, context),
                             ),
                           );
                         },
@@ -237,6 +266,122 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
     );
   }
 
+  void _showClassStudents(ClassItem classItem) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final students = classItem.studentList;
+        return Container(
+          height: MediaQuery.of(sheetContext).size.height * 0.7,
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.border,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          classItem.title,
+                          style: Theme.of(sheetContext).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      StatusBadge(
+                        label: classItem.status,
+                        color: classItem.statusColor,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'عدد الطلاب: ${students.length}',
+                    style: Theme.of(sheetContext).textTheme.bodyMedium
+                        ?.copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  if (students.isEmpty)
+                    const Expanded(
+                      child: Center(
+                        child: Text('لا يوجد طلاب مرتبطون بهذا الصف حالياً'),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: students.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: AppSpacing.sm),
+                        itemBuilder: (context, index) {
+                          final student = students[index];
+                          final label = student.parentName.isNotEmpty
+                              ? '${student.fullName} • ولي الأمر: ${student.parentName}'
+                              : student.fullName;
+                          return Container(
+                            padding: const EdgeInsets.all(AppSpacing.sm),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: AppColors.primary
+                                      .withOpacity(0.12),
+                                  child: Text(
+                                    student.fullName.isNotEmpty
+                                        ? student.fullName.substring(0, 1)
+                                        : '?',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Text(
+                                    label,
+                                    style: Theme.of(
+                                      sheetContext,
+                                    ).textTheme.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildClassCard(ClassItem classItem, BuildContext context) {
     return Card(
       elevation: 4,
@@ -245,10 +390,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              classItem.color.withOpacity(0.1),
-              AppColors.surface,
-            ],
+            colors: [classItem.color.withOpacity(0.1), AppColors.surface],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -256,14 +398,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('فتح تفاصيل ${classItem.title}'),
-                backgroundColor: classItem.color,
-              ),
-            );
-          },
+          onTap: () => _showClassStudents(classItem),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
@@ -275,11 +410,7 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                     color: classItem.color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(
-                    classItem.icon,
-                    color: classItem.color,
-                    size: 32,
-                  ),
+                  child: Icon(classItem.icon, color: classItem.color, size: 32),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -288,9 +419,8 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                     children: [
                       Text(
                         classItem.title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
@@ -310,9 +440,10 @@ class _ClassesPageState extends State<ClassesPage> with TickerProviderStateMixin
                           const SizedBox(width: 4),
                           Text(
                             '${classItem.students} طالب',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.onSurface.withOpacity(0.6),
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: AppColors.onSurface.withOpacity(0.6),
+                                ),
                           ),
                         ],
                       ),

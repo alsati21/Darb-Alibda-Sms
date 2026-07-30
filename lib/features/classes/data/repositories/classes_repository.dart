@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_client.dart';
-import '../../data/models/class_item.dart';
 import '../../../../shared/theme/app_colors.dart';
+import '../../data/models/class_item.dart';
 
 class ClassesRepository {
   ClassesRepository({ApiClient? apiClient})
@@ -28,7 +28,7 @@ class ClassesRepository {
       throw Exception('خطأ في جلب الصفوف (${response.statusCode})');
     }
 
-    final body = response.body;
+    final body = utf8.decode(response.bodyBytes, allowMalformed: true);
     if (body.isEmpty) return [];
 
     final decoded = jsonDecode(body);
@@ -48,7 +48,17 @@ class ClassesRepository {
       final className = '${map['class_name'] ?? ''}'.trim();
       final sectionName = '${map['section_name'] ?? ''}'.trim();
 
-      // pick a subject from schedules if available
+      final rawStudents = map['students'];
+      final studentList = (rawStudents is List)
+          ? rawStudents
+                .whereType<Map>()
+                .map(
+                  (student) =>
+                      ClassStudent.fromJson(Map<String, dynamic>.from(student)),
+                )
+                .toList()
+          : <ClassStudent>[];
+
       String subject = '';
       final schedules = map['schedules'];
       if (schedules is List && schedules.isNotEmpty) {
@@ -71,6 +81,7 @@ class ClassesRepository {
           students: totalStudents,
           grade: className,
           subject: subject,
+          studentList: studentList,
         ),
       );
     }

@@ -6,6 +6,7 @@ import '../../../../shared/theme/app_colors.dart';
 import '../../../../shared/widgets/primary_button.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../shared/widgets/app_feedback.dart';
+import '../../../../shared/widgets/support_info_dialog.dart';
 import '../../../../core/navigation/route_names.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
@@ -20,6 +21,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -56,6 +58,48 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     );
   }
 
+  void _showSupportDialog() async {
+    final cubit = context.read<AuthCubit>();
+    final supportInfo = await cubit.fetchSupportInfo();
+
+    if (!mounted) return;
+
+    if (supportInfo == null) {
+      showAppFeedback(
+        context,
+        message: 'تعذر جلب بيانات الدعم. حاول لاحقاً.',
+        isError: true,
+      );
+      return;
+    }
+
+    await SupportInfoDialog.show(context, supportInfo);
+  }
+
+  String _validationMessageFromState(AuthState state) {
+    if (state is AuthValidationFailure) {
+      if (state.message != null && state.message!.isNotEmpty) {
+        return state.message!;
+      }
+
+      for (final entry in state.errors.entries) {
+        final value = entry.value;
+        if (value is List && value.isNotEmpty) {
+          return value.first.toString();
+        }
+        if (value != null) {
+          return value.toString();
+        }
+      }
+    }
+
+    if (state is AuthFailure) {
+      return state.message;
+    }
+
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
@@ -65,12 +109,21 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           return;
         }
 
+        if (state is AuthValidationFailure) {
+          final message = _validationMessageFromState(state);
+          if (message.isNotEmpty) {
+            showAppFeedback(context, message: message, isError: true);
+          }
+          return;
+        }
+
         if (state is AuthFailure) {
           showAppFeedback(context, message: state.message, isError: true);
         }
       },
       builder: (context, state) {
         final isLoading = state is AuthLoading;
+        final validationMessage = _validationMessageFromState(state);
 
         return Scaffold(
           body: Container(
@@ -146,6 +199,32 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpacing.xl),
+                          if (validationMessage.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                              padding: const EdgeInsets.all(AppSpacing.sm),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                border: Border.all(color: Colors.red.shade200),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.error_outline, color: Colors.red.shade700),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: Text(
+                                      validationMessage,
+                                      style: TextStyle(
+                                        color: Colors.red.shade700,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           // Form Fields
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
@@ -180,11 +259,22 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             curve: Curves.easeInOut,
                             child: TextField(
                               controller: _passwordController,
-                              obscureText: true,
+                              obscureText: !_isPasswordVisible,
                               decoration: InputDecoration(
                                 labelText: 'كلمة المرور',
                                 hintText: '••••••••',
                                 prefixIcon: const Icon(Icons.lock_outline),
+                                suffixIcon: IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isPasswordVisible = !_isPasswordVisible;
+                                    });
+                                  },
+                                  icon: Icon(
+                                    _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
                                 filled: true,
                                 fillColor: AppColors.surface,
                                 border: OutlineInputBorder(
@@ -206,7 +296,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: _showSupportDialog,
                               child: Text(
                                 'نسيت كلمة المرور؟',
                                 style: TextStyle(color: AppColors.primary),

@@ -13,6 +13,22 @@ import 'package:darb_alibda_sms/features/auth/data/repositories/auth_repository.
 import 'package:darb_alibda_sms/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:darb_alibda_sms/features/auth/presentation/pages/login_page.dart';
 
+class _FakeAuthRepository extends AuthRepository {
+  @override
+  Future<Map<String, dynamic>> login({
+    required String phone,
+    required String password,
+    String? fcmToken,
+  }) async {
+    throw ApiValidationException(
+      errors: {
+        'password': ['كلمة المرور خاطئة. حاول مرة أخرى.'],
+      },
+      message: 'البيانات المقدمة غير صالحة.',
+    );
+  }
+}
+
 void main() {
   testWidgets('Login screen renders its auth form', (WidgetTester tester) async {
     final authCubit = AuthCubit(AuthRepository());
@@ -26,5 +42,24 @@ void main() {
 
     expect(find.text('أهلاً بك'), findsOneWidget);
     expect(find.text('تسجيل الدخول'), findsOneWidget);
+  });
+
+  testWidgets('Login screen shows the backend validation error from the password field', (WidgetTester tester) async {
+    final authCubit = AuthCubit(_FakeAuthRepository());
+
+    await tester.pumpWidget(
+      BlocProvider<AuthCubit>.value(
+        value: authCubit,
+        child: const MaterialApp(home: LoginPage()),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).at(0), '0999999999');
+    await tester.enterText(find.byType(TextField).at(1), 'wrongpassword');
+    await tester.tap(find.text('تسجيل الدخول'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.textContaining('كلمة المرور خاطئة'), findsOneWidget);
   });
 }

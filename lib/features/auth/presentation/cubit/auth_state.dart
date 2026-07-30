@@ -23,7 +23,8 @@ class AuthFailure extends AuthState {
 }
 
 class AuthValidationFailure extends AuthState {
-  const AuthValidationFailure(this.errors);
+  const AuthValidationFailure(this.errors, {this.message});
 
   final Map<String, dynamic> errors;
+  final String? message;
 }

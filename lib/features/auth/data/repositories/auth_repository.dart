@@ -49,6 +49,16 @@ class AuthRepository {
     final decodedBody = _decodeResponse(response.body);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      if (decodedBody is Map<String, dynamic> && decodedBody.containsKey('errors')) {
+        final errors = decodedBody['errors'];
+        if (errors is Map<String, dynamic>) {
+          throw ApiValidationException(
+            errors: errors,
+            message: _extractMessage(decodedBody) ?? 'فشل تسجيل الدخول',
+          );
+        }
+      }
+
       final message = _extractMessage(decodedBody) ?? 'فشل تسجيل الدخول';
       throw Exception(message);
     }

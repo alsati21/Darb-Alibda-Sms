@@ -71,6 +71,7 @@ class _SchedulePageState extends State<SchedulePage> {
       currentIndex: 2,
       body: RefreshIndicator(
         onRefresh: _loadSchedule,
+        color: AppColors.primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.lg),
@@ -88,21 +89,16 @@ class _SchedulePageState extends State<SchedulePage> {
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (_errorMessage != null)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Text(_errorMessage!, textAlign: TextAlign.center),
-                  ),
-                )
+                _ErrorCard(message: _errorMessage!)
               else
                 _buildTodaySchedule(),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.xl),
               const SectionHeader(
                 title: 'جدول الأسبوع',
                 subtitle: 'راجع الحصص المتاحة خلال الأيام القادمة',
               ),
-              if (!_isLoading && _errorMessage == null)
-                _buildWeekSchedule(),
+              const SizedBox(height: AppSpacing.sm),
+              if (!_isLoading && _errorMessage == null) _buildWeekSchedule(),
               const SizedBox(height: AppSpacing.xl),
             ],
           ),
@@ -111,41 +107,33 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
+  // ---------------------------------------------------------------------
+  // Today's schedule — a clean vertical list of period cards.
+  // ---------------------------------------------------------------------
   Widget _buildTodaySchedule() {
     if (_todayItems.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Row(
-            children: [
-              const Icon(Icons.event_available, color: AppColors.primary),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text('لا توجد حصص مقررة اليوم', style: Theme.of(context).textTheme.bodyMedium)),
-            ],
-          ),
-        ),
+      return const _EmptyStateCard(
+        icon: Icons.event_available_rounded,
+        message: 'لا توجد حصص مقررة اليوم',
       );
     }
 
     return Column(
       children: _todayItems.map((item) {
-        final startTime = _formatTime(item.timeSlot.startTime);
-        final endTime = _formatTime(item.timeSlot.endTime);
+        final periodLabel = _periodLabel(item.timeSlot.periodNumber, item.timeSlot.name);
+        final color = _colorForSubject(item.subject);
+
         return Container(
           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.surface, AppColors.surfaceVariant],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border.withOpacity(0.25)),
+            border: Border(left: BorderSide(color: color, width: 4)),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.08),
-                blurRadius: 10,
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -156,31 +144,43 @@ class _SchedulePageState extends State<SchedulePage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.schedule, color: AppColors.primary),
+                child: Icon(Icons.schedule_rounded, color: color),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.subject, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(item.section, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.onSurface.withOpacity(0.75))),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text('${item.timeSlot.name} • ${item.term.isNotEmpty ? item.term : 'الحصة'}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withOpacity(0.65))),
+                    Text(
+                      item.subject,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.section,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$periodLabel • ${item.term.isNotEmpty ? item.term : 'الحصة'}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withOpacity(0.55)),
+                    ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text('$startTime - $endTime', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700, color: AppColors.primary)),
+                child: Text(
+                  periodLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800, color: color),
+                ),
               ),
             ],
           ),
@@ -189,81 +189,152 @@ class _SchedulePageState extends State<SchedulePage> {
     );
   }
 
+  // ---------------------------------------------------------------------
+  // Week schedule — a real timetable grid: periods as rows, days as
+  // columns, horizontally scrollable so it never overflows on a phone.
+  // ---------------------------------------------------------------------
   Widget _buildWeekSchedule() {
-    if (_weekItems.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Text('لا توجد حصص لهذا الأسبوع', style: Theme.of(context).textTheme.bodyMedium),
-        ),
+    final hasAnyLesson = _weekItems.values.any((items) => items.isNotEmpty);
+    if (_weekItems.isEmpty || !hasAnyLesson) {
+      return const _EmptyStateCard(
+        icon: Icons.calendar_view_week_rounded,
+        message: 'لا توجد حصص لهذا الأسبوع',
       );
     }
 
-    final days = _weekItems.keys.toList();
-    return Column(
-      children: days.map((day) {
-        final items = _weekItems[day] ?? const <TeacherWeekScheduleItem>[];
-        return Container(
-          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border.withOpacity(0.2)),
+    // Canonical Sun→Sat order for display; unknown day labels sort last.
+    const dayOrder = <String>[
+      'الأحد',
+      'الإثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+    ];
+
+    final days = _weekItems.keys.toList()
+      ..sort((a, b) {
+        final aRank = dayOrder.indexOf(a);
+        final bRank = dayOrder.indexOf(b);
+        final aSafe = aRank == -1 ? dayOrder.length : aRank;
+        final bSafe = bRank == -1 ? dayOrder.length : bRank;
+        return aSafe.compareTo(bSafe);
+      });
+
+    // Collect every distinct period across the week (keyed by period
+    // name), keeping one representative item per key for its time label.
+    final periodByKey = <String, TeacherWeekScheduleItem>{};
+    for (final items in _weekItems.values) {
+      for (final item in items) {
+        final key = item.timeSlot.name.isNotEmpty
+            ? item.timeSlot.name
+            : _formatTime(item.timeSlot.startTime);
+        periodByKey.putIfAbsent(key, () => item);
+      }
+    }
+
+    final periodKeys = periodByKey.keys.toList()
+      ..sort((a, b) {
+        final aTime = _formatTime(periodByKey[a]!.timeSlot.startTime);
+        final bTime = _formatTime(periodByKey[b]!.timeSlot.startTime);
+        return aTime.compareTo(bTime);
+      });
+
+    if (periodKeys.isEmpty) {
+      return const _EmptyStateCard(
+        icon: Icons.calendar_view_week_rounded,
+        message: 'لا توجد حصص لهذا الأسبوع',
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withOpacity(0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Table(
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          columnWidths: {
+            0: const FixedColumnWidth(88),
+            for (var i = 0; i < days.length; i++) i + 1: const FixedColumnWidth(128),
+          },
+          border: TableBorder(
+            horizontalInside: BorderSide(color: AppColors.border.withOpacity(0.25)),
+            verticalInside: BorderSide(color: AppColors.border.withOpacity(0.25)),
+          ),
+          children: [
+            TableRow(
+              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.08)),
+              children: [
+                const _GridHeaderCell(text: 'الوقت'),
+                ...days.map((day) => _GridHeaderCell(text: _displayDayName(day))),
+              ],
+            ),
+            for (var i = 0; i < periodKeys.length; i++)
+              TableRow(
+                decoration: BoxDecoration(
+                  color: i.isEven ? Colors.white : const Color(0xFFFAFAFA),
+                ),
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Icon(Icons.calendar_view_day, color: AppColors.primary, size: 18),
+                  _GridTimeCell(
+                    item: periodByKey[periodKeys[i]]!,
+                    formatTime: _formatTime,
+                    periodNumber: periodByKey[periodKeys[i]]!.timeSlot.periodNumber > 0
+                        ? periodByKey[periodKeys[i]]!.timeSlot.periodNumber
+                        : i + 1,
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(_displayDayName(day), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  ...days.map((day) {
+                    final key = periodKeys[i];
+                    final dayItems = _weekItems[day] ?? const <TeacherWeekScheduleItem>[];
+                    TeacherWeekScheduleItem? match;
+                    for (final candidate in dayItems) {
+                      final candidateKey = candidate.timeSlot.name.isNotEmpty
+                          ? candidate.timeSlot.name
+                          : _formatTime(candidate.timeSlot.startTime);
+                      if (candidateKey == key) {
+                        match = candidate;
+                        break;
+                      }
+                    }
+                    if (match == null) {
+                      return const _GridEmptyCell();
+                    }
+                    return _GridLessonCell(item: match, color: _colorForSubject(match.subject));
+                  }),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              if (items.isEmpty)
-                Text('لا توجد حصص لهذا اليوم', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.onSurface.withOpacity(0.7)))
-              else
-                ...items.map((item) => Container(
-                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border(left: BorderSide(color: AppColors.primary.withOpacity(0.35), width: 3)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.play_circle_outline, color: AppColors.secondary, size: 18),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item.subject, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            Text('${item.timeSlot.name} • ${item.section}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurface.withOpacity(0.7))),
-                          ],
-                        ),
-                      ),
-                      Text(_formatTime(item.timeSlot.startTime), style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                )),
-            ],
-          ),
-        );
-      }).toList(),
+          ],
+        ),
+      ),
     );
+  }
+
+  Color _colorForSubject(String subject) {
+    const palette = <Color>[
+      Color(0xFF3B82F6),
+      Color(0xFF10B981),
+      Color(0xFFF59E0B),
+      Color(0xFFEF4444),
+      Color(0xFF8B5CF6),
+      Color(0xFF06B6D4),
+      Color(0xFFEC4899),
+      Color(0xFF84CC16),
+    ];
+    if (subject.isEmpty) return AppColors.primary;
+    final index = subject.hashCode.abs() % palette.length;
+    return palette[index];
   }
 
   String _formatTime(String raw) {
@@ -272,6 +343,32 @@ class _SchedulePageState extends State<SchedulePage> {
     if (parts.length < 2) return raw;
     final timePart = parts[1];
     return timePart.substring(0, timePart.length > 5 ? 5 : timePart.length);
+  }
+
+  String _periodLabel(int periodNumber, String fallback) {
+    if (periodNumber > 0) {
+      const arabicNumbers = <String>[
+        'الأولى',
+        'الثانية',
+        'الثالثة',
+        'الرابعة',
+        'الخامسة',
+        'السادسة',
+        'السابعة',
+        'الثامنة',
+        'التاسعة',
+        'العاشرة',
+      ];
+      final index = periodNumber - 1;
+      if (index >= 0 && index < arabicNumbers.length) {
+        return 'الحصة ${arabicNumbers[index]}';
+      }
+      return 'الحصة $periodNumber';
+    }
+    if (fallback.trim().isNotEmpty) {
+      return fallback.trim();
+    }
+    return 'الحصة';
   }
 
   String _displayDayName(String day) {
@@ -293,5 +390,212 @@ class _SchedulePageState extends State<SchedulePage> {
       default:
         return day;
     }
+  }
+}
+
+class _GridHeaderCell extends StatelessWidget {
+  const _GridHeaderCell({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          color: AppColors.primary,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
+
+class _GridTimeCell extends StatelessWidget {
+  const _GridTimeCell({
+    required this.item,
+    required this.formatTime,
+    required this.periodNumber,
+  });
+
+  final TeacherWeekScheduleItem item;
+  final String Function(String) formatTime;
+  final int periodNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    final periodLabel = _periodLabel(periodNumber, item.timeSlot.name);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      child: Center(
+        child: Text(
+          periodLabel,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 11,
+            color: AppColors.onSurface.withOpacity(0.8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _periodLabel(int periodNumber, String fallback) {
+    if (periodNumber > 0) {
+      const arabicNumbers = <String>[
+        'الأولى',
+        'الثانية',
+        'الثالثة',
+        'الرابعة',
+        'الخامسة',
+        'السادسة',
+        'السابعة',
+        'الثامنة',
+        'التاسعة',
+        'العاشرة',
+      ];
+      final index = periodNumber - 1;
+      if (index >= 0 && index < arabicNumbers.length) {
+        return 'الحصة ${arabicNumbers[index]}';
+      }
+      return 'الحصة $periodNumber';
+    }
+    if (fallback.trim().isNotEmpty) {
+      return fallback.trim();
+    }
+    return 'الحصة';
+  }
+}
+
+class _GridLessonCell extends StatelessWidget {
+  const _GridLessonCell({required this.item, required this.color});
+
+  final TeacherWeekScheduleItem item;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border(left: BorderSide(color: color, width: 3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              item.subject,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              item.section,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurface.withOpacity(0.6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GridEmptyCell extends StatelessWidget {
+  const _GridEmptyCell();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Text(
+          '—',
+          style: TextStyle(
+            color: AppColors.onSurface.withOpacity(0.2),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyStateCard extends StatelessWidget {
+  const _EmptyStateCard({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.primary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.error.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.error.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline_rounded, color: AppColors.error),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        ],
+      ),
+    );
   }
 }

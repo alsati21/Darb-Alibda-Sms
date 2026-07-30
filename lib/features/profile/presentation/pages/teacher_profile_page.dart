@@ -32,6 +32,13 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _experienceController = TextEditingController();
+  String _nationalId = '';
+  String _registryNumber = '';
+  String _employeeNumber = '';
+  String _specialization = '';
+  String _hireDate = '';
+  String _employmentType = '';
+  String _email = '';
   final ImagePicker _picker = ImagePicker();
   XFile? _avatarFile;
   String? _avatarUrl;
@@ -93,11 +100,20 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
         _nameController.text = user['name']?.toString() ?? '';
         _roleController.text = user['role']?.toString() ?? '';
         _emailController.text = user['email']?.toString() ?? '';
+        _email = user['email']?.toString() ?? '';
         _phoneController.text = teacher['phone_alt']?.toString() ??
             user['phone']?.toString() ??
             '';
         _addressController.text = teacher['address']?.toString() ?? '';
         _experienceController.text = teacher['experience_years']?.toString() ?? '';
+        _nationalId = teacher['national_id']?.toString() ?? '';
+        _registryNumber = teacher['registry_number']?.toString() ?? '';
+        _employeeNumber = teacher['employee_number']?.toString() ?? '';
+        _specialization = teacher['specialization']?.toString() ??
+            user['role']?.toString() ??
+            '';
+        _hireDate = teacher['hire_date']?.toString() ?? '';
+        _employmentType = teacher['employment_type']?.toString() ?? '';
         _avatarUrl = _resolveAvatarUrl(user['avatar']?.toString());
         _avatarFile = null;
         _fieldErrors.clear();
@@ -307,57 +323,62 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            InkWell(
-                              onTap: _editAvatar,
-                              borderRadius: BorderRadius.circular(80),
-                              child: CircleAvatar(
-                                radius: 46,
-                                backgroundColor: AppColors.onPrimary.withValues(alpha: 0.12),
-                                child: _avatarFile != null
-                                    ? ClipOval(
-                                        child: Image.file(
-                                          File(_avatarFile!.path),
-                                          width: 92,
-                                          height: 92,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      )
-                                    : (_avatarUrl != null
-                                        ? ClipOval(
-                                            child: Image.network(
-                                              _avatarUrl!,
-                                              width: 92,
-                                              height: 92,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) {
-                                                return Container(
-                                                  width: 92,
-                                                  height: 92,
-                                                  color: AppColors.surfaceVariant,
-                                                  child: Center(
-                                                    child: Text(
-                                                      _initialsFromName(_nameController.text) ?? 'م',
-                                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                                            fontWeight: FontWeight.w700,
-                                                            color: AppColors.onSurface,
-                                                          ),
+                            Material(
+                              color: Colors.transparent,
+                              shape: const CircleBorder(),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: _editAvatar,
+                                borderRadius: BorderRadius.circular(80),
+                                child: CircleAvatar(
+                                  radius: 46,
+                                  backgroundColor: AppColors.onPrimary.withValues(alpha: 0.12),
+                                  child: _avatarFile != null
+                                      ? ClipOval(
+                                          child: Image.file(
+                                            File(_avatarFile!.path),
+                                            width: 92,
+                                            height: 92,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      : (_avatarUrl != null
+                                          ? ClipOval(
+                                              child: Image.network(
+                                                _avatarUrl!,
+                                                width: 92,
+                                                height: 92,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  return Container(
+                                                    width: 92,
+                                                    height: 92,
+                                                    color: AppColors.surfaceVariant,
+                                                    child: Center(
+                                                      child: Text(
+                                                        _initialsFromName(_nameController.text) ?? 'م',
+                                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                              fontWeight: FontWeight.w700,
+                                                              color: AppColors.onSurface,
+                                                            ),
+                                                      ),
                                                     ),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          )
-                                        : CircleAvatar(
-                                            radius: 40,
-                                            backgroundColor: AppColors.surfaceVariant,
-                                            child: Text(
-                                              _initialsFromName(_nameController.text) ?? '',
-                                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors.onSurface,
-                                                  ),
-                                            ),
-                                          )),
+                                                  );
+                                                },
+                                              ),
+                                            )
+                                          : CircleAvatar(
+                                              radius: 40,
+                                              backgroundColor: AppColors.surfaceVariant,
+                                              child: Text(
+                                                _initialsFromName(_nameController.text) ?? '',
+                                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                      fontWeight: FontWeight.w700,
+                                                      color: AppColors.onSurface,
+                                                    ),
+                                              ),
+                                            )),
+                                ),
                               ),
                             ),
                             Positioned(
@@ -432,22 +453,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
               elevation: 3,
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text('إحصائيات المعلم', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: AppSpacing.md),
-                    Row(
-                      children: const [
-                        Expanded(child: _StatItem(label: 'عدد الطلاب', value: '86')),
-                        SizedBox(width: AppSpacing.sm),
-                        Expanded(child: _StatItem(label: 'الصفوف', value: '5')),
-                        SizedBox(width: AppSpacing.sm),
-                        Expanded(child: _StatItem(label: 'طلبات', value: '7')),
-                      ],
-                    ),
-                  ],
-                ),
+
               ),
             ),
 
@@ -460,13 +466,52 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('نبذة عنك', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text('التخصص: ${_roleController.text}', style: Theme.of(context).textTheme.bodyLarge),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text('العنوان: ${_addressController.text}', style: Theme.of(context).textTheme.bodyLarge),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text('سنوات الخبرة: ${_experienceController.text}', style: Theme.of(context).textTheme.bodyLarge),
+                    Row(
+                      children: [
+                        const Icon(Icons.badge, color: AppColors.primary),
+                        const SizedBox(width: AppSpacing.sm),
+                        const Text('معلومات الوظيفة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: AppSpacing.sm,
+                      mainAxisSpacing: AppSpacing.sm,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 3.2,
+                      children: [
+                        _ProfileDetailTile(icon: Icons.badge_outlined, label: 'الرقم الوطني', value: _nationalId.isNotEmpty ? _nationalId : 'غير متوفر'),
+                        _ProfileDetailTile(icon: Icons.work_outline, label: 'رقم التوظيف', value: _employeeNumber.isNotEmpty ? _employeeNumber : 'غير متوفر'),
+                        _ProfileDetailTile(icon: Icons.app_registration_outlined, label: 'رقم التسجيل', value: _registryNumber.isNotEmpty ? _registryNumber : 'غير متوفر'),
+                        _ProfileDetailTile(icon: Icons.phone_android_outlined, label: 'رقم الهاتف', value: _phoneController.text.isNotEmpty ? _phoneController.text : 'غير متوفر'),
+                        _ProfileDetailTile(icon: Icons.email_outlined, label: 'البريد الإلكتروني', value: _email.isNotEmpty ? _email : 'غير متوفر'),
+                        _ProfileDetailTile(icon: Icons.calendar_today_outlined, label: 'تاريخ التعيين', value: _hireDate.isNotEmpty ? _hireDate : 'غير محدد'),
+                        _ProfileDetailTile(icon: Icons.location_on_outlined, label: 'العنوان', value: _addressController.text.isNotEmpty ? _addressController.text : 'غير محدد'),
+                        _ProfileDetailTile(icon: Icons.timeline_outlined, label: 'سنوات الخبرة', value: _experienceController.text.isNotEmpty ? _experienceController.text : 'غير محددة'),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.work_history_outlined, color: AppColors.primary),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              'سنوات الخبرة: ${_experienceController.text.isNotEmpty ? _experienceController.text : 'غير محددة'}',
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -687,6 +732,73 @@ class _InfoTile extends StatelessWidget {
                 Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
                 const SizedBox(height: AppSpacing.xs),
                 Text(value, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileDetailTile extends StatelessWidget {
+  const _ProfileDetailTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 14, color: AppColors.primary),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.onSurface.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.onSurface,
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ),
